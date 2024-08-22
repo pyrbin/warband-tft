@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "📦 watch",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "watch"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🦀 run",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "run"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "📟 run: wasm",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "wasm"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🚤 build: release",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "👷‍♀️ build: debug",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "build-debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🪄 fix",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "fix"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🤖 ci",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "ci"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🖌️ fmt",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "fmt"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "📎 clippy",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "clippy"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "🧽 clean",
+            "type": "shell",
+            "command": "just",
+            "args": [
+                "clean"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+    ]
+}
