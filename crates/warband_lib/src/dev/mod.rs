@@ -1,6 +1,7 @@
 use crate::prelude::*;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy_editor_pls::EditorPlugin;
+use iyes_perf_ui::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     {
@@ -11,6 +12,7 @@ pub(super) fn plugin(app: &mut App) {
                 LogDiagnosticsPlugin::filtered(vec![]),
                 PhysicsDebugPlugin::default(),
             ))
+            .add_plugins(PerfUiPlugin)
             .insert_gizmo_config(
                 PhysicsGizmos {
                     aabb_color: Some(Color::WHITE),

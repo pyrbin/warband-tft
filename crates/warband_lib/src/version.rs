@@ -11,7 +11,7 @@ impl std::fmt::Display for Semver {
     }
 }
 
-pub const GIT_VERSION: &str = ""; // git_version::git_version!();
+pub const GIT_VERSION: &str = git_version::git_version!();
 
 lazy_static::lazy_static! {
     pub static ref VERSION: Semver = Semver {
