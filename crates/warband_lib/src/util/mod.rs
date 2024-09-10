@@ -1,5 +1,5 @@
-mod math_trait;
-mod pipe;
+pub mod math_trait;
+pub mod pipe;
 
 macro_rules! single {
     ($query:expr) => {

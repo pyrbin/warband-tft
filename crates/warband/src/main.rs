@@ -20,28 +20,7 @@ pub fn main() {
 
     let mut app = App::new();
 
-    info!("test");
-
-    let default_plugins = DefaultPlugins
-        .set(WindowPlugin {
-            primary_window: Some(Window {
-                title: format!("{} {}", name(), warband_lib::version()),
-                present_mode: PresentMode::AutoNoVsync,
-                resolution: (1280., 720.).into(),
-                ..default()
-            }),
-            ..default()
-        })
-        .set(RenderPlugin {
-            // see: https://github.com/bevyengine/bevy/issues/9975
-            render_creation: bevy::render::settings::RenderCreation::Automatic(
-                bevy::render::settings::WgpuSettings {
-                    backends: Some(bevy::render::settings::Backends::VULKAN),
-                    ..default()
-                },
-            ),
-            ..default()
-        });
+    let default_plugins = DefaultPlugins.set(window_plugin()).set(render_plugin());
 
     app.add_plugins(
         default_plugins
@@ -57,6 +36,31 @@ pub fn main() {
     app.add_systems(Startup, set_window_icon);
 
     app.run();
+}
+
+fn window_plugin() -> WindowPlugin {
+    WindowPlugin {
+        primary_window: Some(Window {
+            title: format!("{} {}", name(), warband_lib::version()),
+            present_mode: PresentMode::AutoNoVsync,
+            resolution: (1280., 720.).into(),
+            ..default()
+        }),
+        ..default()
+    }
+}
+
+fn render_plugin() -> RenderPlugin {
+    RenderPlugin {
+        // see: https://github.com/bevyengine/bevy/issues/9975
+        render_creation: bevy::render::settings::RenderCreation::Automatic(
+            bevy::render::settings::WgpuSettings {
+                backends: Some(bevy::render::settings::Backends::VULKAN),
+                ..default()
+            },
+        ),
+        ..default()
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

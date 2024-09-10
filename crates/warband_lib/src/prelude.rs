@@ -1,4 +1,9 @@
 #![allow(unused_imports)]
+pub(crate) use crate::{
+    core::*,
+    name::*,
+    util::{math_trait::*, *},
+};
 pub use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};
 pub use avian3d::prelude::*;
 pub use bevy::{
@@ -12,6 +17,7 @@ pub use bevy::{
     utils::{Duration, HashMap, HashSet, Instant},
     window::PrimaryWindow,
 };
+pub use bon::{bon, builder, Builder};
 pub use derive_more::{Display, From};
 pub use itertools::Itertools;
 pub use rand::prelude::*;

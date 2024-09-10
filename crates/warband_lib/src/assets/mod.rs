@@ -8,6 +8,7 @@ use crate::{prelude::*, AppState};
 
 pub fn plugin(app: &mut App) {
     app_register_types!(FontAssets, ModelAssets, ImageAssets);
+
     app.add_loading_state(
         LoadingState::new(AppState::Loading)
             .load_collection::<FontAssets>()
