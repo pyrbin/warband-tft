@@ -21,6 +21,7 @@ fn setup(
             transform: Transform::from_xyz(30., 100., 30.).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
+        Cleanup(OnExit(AppState::InGame)),
     ));
 
     // unit

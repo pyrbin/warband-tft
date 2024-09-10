@@ -1,16 +1,30 @@
+use bevy::ecs::intern::Interned;
+
 use crate::prelude::*;
 
-#[derive(Component, Reflect)]
-#[reflect(Component)]
+#[derive(Component)]
 #[component(storage = "SparseSet")]
-pub struct Cleanup<T>(#[reflect(ignore)] PhantomData<T>);
+pub struct Cleanup<T: ScheduleLabel>(pub T);
 
-// #FB_TODO: improve cleanup API with more verbose settings
-// ex.
-// spawn(Cleanup.on_enter(AppState::InGame))
-// spawn(Cleanup.on_exit(AppState::InGame))
+pub(super) fn plugin<T: ScheduleLabel>(schedule: T) -> CleanupPlugin<T> {
+    CleanupPlugin {
+        schedule: schedule.intern(),
+        _marker: default(),
+    }
+}
 
-pub fn cleanup<T: Component>(
+pub(super) struct CleanupPlugin<T: ScheduleLabel> {
+    schedule: Interned<dyn ScheduleLabel>,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: ScheduleLabel> Plugin for CleanupPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.add_systems(self.schedule, cleanup::<T>);
+    }
+}
+
+fn cleanup<T: ScheduleLabel>(
     commands: ParallelCommands,
     entities: Query<Entity, With<Cleanup<T>>>,
 ) {

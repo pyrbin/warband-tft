@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, AppState};
 
 pub mod camera_driver;
 pub mod cleanup;
@@ -11,6 +11,12 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_plugins(bevy_mod_picking::DefaultPickingPlugins);
     app.add_plugins((despawn::plugin, camera_driver::plugin(Last)));
+
+    // #FB_TODO: replace with a derive macro?
+    app.add_plugins(cleanup::plugin(OnEnter(AppState::InGame)));
+    app.add_plugins(cleanup::plugin(OnExit(AppState::InGame)));
+    app.add_plugins(cleanup::plugin(OnEnter(AppState::Loading)));
+    app.add_plugins(cleanup::plugin(OnExit(AppState::Loading)));
 }
 
 /// Component to mark own
