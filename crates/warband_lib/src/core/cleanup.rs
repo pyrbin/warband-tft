@@ -7,7 +7,7 @@ use crate::prelude::*;
 pub struct Cleanup<T: ScheduleLabel>(pub T);
 
 pub(super) fn plugin<T: ScheduleLabel>(schedule: T) -> CleanupPlugin<T> {
-    CleanupPlugin {
+    CleanupPlugin::<T> {
         schedule: schedule.intern(),
         _marker: default(),
     }

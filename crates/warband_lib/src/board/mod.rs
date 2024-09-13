@@ -3,54 +3,116 @@ use bevy_inspector_egui::prelude::*;
 use bevy_mod_picking::prelude::*;
 use hexx::*;
 
+pub mod footprint;
 pub mod location;
+pub mod occupied;
+
+pub use footprint::Footprint;
 pub use location::Location;
+pub use occupied::Occupied;
+
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BoardSystems {
+    Build,
+    Location,
+    Footprint,
+    Occupied,
+}
 
 pub(super) fn plugin(app: &mut App) {
-    app_register_types!(Board, BoardSettings, Cell, Location);
+    app_register_types!(
+        Board,
+        BoardSettings,
+        BoardBounds,
+        Cell,
+        Location,
+        BoardBuiltEvent,
+        footprint::Footprint
+    );
 
-    app.init_resource::<Board>().insert_resource(
-        BoardSettings::builder()
-            .width(10)
-            .height(10)
-            .hex_size(1.0)
-            .build(),
+    app.init_resource::<Board>()
+        .init_resource::<Occupied>()
+        .insert_resource(
+            BoardSettings::builder()
+                .width(10)
+                .height(10)
+                .hex_size(1.0)
+                .build(),
+        )
+        .add_event::<BoardBuiltEvent>();
+
+    app.configure_sets(
+        FixedUpdate,
+        (
+            BoardSystems::Build.run_if(resource_exists::<BoardSettings>),
+            BoardSystems::Location,
+            BoardSystems::Footprint,
+            BoardSystems::Occupied,
+        )
+            .chain()
+            .run_if(resource_exists::<Board>)
+            .run_if(in_state(AppState::InGame)),
     );
 
     app.add_systems(
-        Update,
-        ((
-            regenerate,
-            location::location.run_if(resource_exists::<Board>),
-        )
-            .run_if(resource_exists::<BoardSettings>)
-            .run_if(in_state(AppState::InGame)),),
+        FixedUpdate,
+        (
+            build.in_set(BoardSystems::Footprint),
+            (
+                location::location,
+                location::on_board_built.run_if(on_event::<BoardBuiltEvent>()),
+            )
+                .in_set(BoardSystems::Location),
+            footprint::agents.in_set(BoardSystems::Footprint),
+            footprint::obstacles.in_set(BoardSystems::Footprint),
+            occupied::splat.in_set(BoardSystems::Occupied),
+        ),
     );
 }
 
-#[derive(Debug, Resource, Reflect)]
+#[derive(Builder, Debug, Resource, Default, Reflect, InspectorOptions)]
+#[reflect(Resource, Default)]
+pub struct BoardSettings {
+    // Size of a single hexagon in world units.
+    #[inspector(min = 1.0, max = 10.0)]
+    pub hex_size: f32,
+    // Width of the board
+    #[inspector(min = 1, max = 100)]
+    pub width: i32,
+    // Height of the board
+    #[inspector(min = 1, max = 100)]
+    pub height: i32,
+    // Orientation of the board.
+    #[builder(default)]
+    pub orientation: HexOrientation,
+    /// Upward shift to sample obstacle from the ground
+    #[builder(default)]
+    #[inspector(min = 0.0, max = 10.0)]
+    pub obstacle_scale: f32,
+    /// Upward shift to sample obstacle from the ground
+    #[builder(default)]
+    #[inspector(min = -5.0, max = 10.0)]
+    pub upward_shift: f32,
+}
+
+#[derive(Resource, Debug, Reflect)]
+#[reflect(Resource)]
 pub struct Board {
     pub entities: HashMap<Hex, Entity>,
     pub layout: HexLayout,
     pub entity: Entity,
     pub bounds: BoardBounds,
-    pub highlighted_material: Handle<StandardMaterial>,
-    pub default_material: Handle<StandardMaterial>,
+    pub transform: Transform,
 }
 
 impl Board {
-    pub fn cell(&self, hex: Hex) -> Option<Entity> {
-        self.entities.get(&hex).copied()
+    pub fn cells(&self) -> impl Iterator<Item = (Hex, Entity)> + '_ {
+        self.entities.iter().map(|(hex, entity)| (*hex, *entity))
     }
 }
 
 impl FromWorld for Board {
     fn from_world(world: &mut World) -> Self {
-        let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
-
-        let default_material = materials.add(Color::Srgba(RED));
-        let highlighted_material = materials.add(Color::Srgba(YELLOW));
-
         let entity = world
             .spawn((SpatialBundle { ..default() }, Name::new("board")))
             .id();
@@ -60,8 +122,7 @@ impl FromWorld for Board {
             layout: HexLayout::default(),
             entity,
             bounds: BoardBounds::default(),
-            highlighted_material,
-            default_material,
+            transform: Transform::default(),
         }
     }
 }
@@ -84,10 +145,6 @@ impl BoardBounds {
         }
     }
 
-    fn from_board_settings(settings: &BoardSettings) -> Self {
-        Self::new(settings.width, settings.height, settings.orientation)
-    }
-
     fn is_in_bounds(&self, hex: Hex) -> bool {
         let (x, y) = axial_to_xy(hex, self.orientation);
         x >= -self.half_width
@@ -107,39 +164,23 @@ fn axial_to_xy(hex: Hex, orientation: HexOrientation) -> (i32, i32) {
     }
 }
 
-#[derive(Builder, Debug, Resource, Default, Reflect, InspectorOptions)]
-pub struct BoardSettings {
-    #[inspector(min = 1.0, max = 10.0)]
-    pub hex_size: f32,
-    #[inspector(min = 1, max = 100)]
-    pub width: i32,
-    #[inspector(min = 1, max = 100)]
-    pub height: i32,
-    #[builder(default)]
-    pub orientation: HexOrientation,
-}
-
-impl BoardSettings {
-    #[inline]
-    pub fn corners(&self) -> [i32; 4] {
-        let half_width = self.width / 2;
-        let half_height = self.height / 2;
-        [-half_width, half_width, -half_height, half_height]
-    }
-}
-
-#[derive(Debug, Component, Reflect)]
+#[derive(Component, Debug, Reflect)]
 pub struct Cell;
 
-#[derive(Debug, Clone, Copy, Default, Component, Reflect)]
+#[derive(Component, Clone, Copy, Default, Debug, Reflect)]
 #[reflect(Component)]
 pub struct Hovered;
 
-fn regenerate(
+#[derive(Event, Debug, Default, Reflect)]
+pub struct BoardBuiltEvent;
+
+fn build(
     mut commands: Commands,
     board_settings: Res<BoardSettings>,
     mut board: ResMut<Board>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut event_writer: EventWriter<BoardBuiltEvent>,
 ) {
     if !board_settings.is_changed() {
         return;
@@ -155,10 +196,15 @@ fn regenerate(
         ..default()
     };
 
+    let default_material = materials.add(Color::WHITE);
     let mesh = circle_column(&layout);
     let mesh_handle = meshes.add(mesh);
 
-    let entities: HashMap<_, _> = shapes::flat_rectangle(board_settings.corners())
+    let half_width = board_settings.width / 2;
+    let half_height = board_settings.height / 2;
+    let corners = [-half_width, half_width, -half_height, half_height];
+
+    let entities: HashMap<_, _> = shapes::flat_rectangle(corners)
         .map(|hex| {
             let pos = layout.hex_to_world_pos(hex);
             let id = commands
@@ -167,7 +213,7 @@ fn regenerate(
                     PbrBundle {
                         transform: Transform::from_xyz(pos.x, 0.0, pos.y),
                         mesh: mesh_handle.clone(),
-                        material: board.default_material.clone_weak(),
+                        material: default_material.clone_weak(),
                         ..default()
                     },
                     Cell,
@@ -187,7 +233,13 @@ fn regenerate(
 
     board.entities = entities;
     board.layout = layout;
-    board.bounds = BoardBounds::from_board_settings(&board_settings);
+    board.bounds = BoardBounds::new(
+        board_settings.width,
+        board_settings.height,
+        board_settings.orientation,
+    );
+
+    event_writer.send(BoardBuiltEvent::default());
 }
 
 fn circle_column(hex_layout: &HexLayout) -> Mesh {
@@ -196,4 +248,34 @@ fn circle_column(hex_layout: &HexLayout) -> Mesh {
         half_height: f32::EPSILON,
     }
     .into()
+}
+
+#[cfg(feature = "dev")]
+pub(crate) fn gizmos(mut gizmos: Gizmos, board: Res<Board>, occupied: Res<Occupied>) {
+    use bevy::color::palettes::tailwind::{RED_500, YELLOW_500};
+
+    let mut occupied_edges = Vec::new();
+
+    for hex in occupied.cells() {
+        for [a, b] in board.layout.all_edge_coordinates(hex) {
+            gizmos.line(a.x0y(), b.x0y(), RED_500);
+            occupied_edges.push((a, b));
+        }
+    }
+
+    for (hex, _) in board.cells() {
+        for [a, b] in board.layout.all_edge_coordinates(hex) {
+            if occupied_edges
+                .iter()
+                .copied()
+                .any(|(oa, ob)| oa == a && ob == b)
+            {
+                continue;
+            }
+
+            for [a, b] in board.layout.all_edge_coordinates(hex) {
+                gizmos.line(a.x0y(), b.x0y(), YELLOW_500);
+            }
+        }
+    }
 }

@@ -1,8 +1,18 @@
-use crate::{prelude::*, AppState};
+use crate::{
+    board,
+    navigation::{self, agent::Agent},
+    player::camera::MainCamera,
+    prelude::*,
+    AppState,
+};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(AppState::InGame), setup);
+    app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
 }
+
+#[derive(Component)]
+struct MoveTo;
 
 fn setup(
     mut commands: Commands,
@@ -24,15 +34,90 @@ fn setup(
         Cleanup(OnExit(AppState::InGame)),
     ));
 
+    let cube_mesh = meshes.add(Cuboid::default());
+
+    commands.spawn((
+        PbrBundle {
+            mesh: cube_mesh.clone(),
+            material: materials.add(Color::srgb(0.1, 0.1, 0.2)),
+            transform: Transform::from_xyz(0.0, -0.51, 0.0)
+                .with_scale(Vec3::new(100.0, 1.0, 100.0)),
+            ..default()
+        },
+        RigidBody::Static,
+        Collider::cuboid(1.0, 1.0, 1.0),
+    ));
+
+    commands.spawn((
+        SpatialBundle {
+            transform: Transform::from_translation(Vec3::ZERO),
+            ..default()
+        },
+        RigidBody::Dynamic,
+        Collider::cuboid(2.0, 2.0, 2.0),
+        board::Location::default(),
+        board::Footprint::default(),
+    ));
+
+    let id = commands
+        .spawn((
+            Name::unit("Target"),
+            PbrBundle {
+                mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
+                material: materials.add(Color::srgb_u8(124, 144, 255).with_alpha(0.1)),
+                transform: Transform::from_xyz(0.0, 0.5, 0.0),
+                ..default()
+            },
+            Agent::default(),
+            board::Location::default(),
+            board::Footprint::default(),
+            MoveTo,
+        ))
+        .id();
+
     // unit
     commands.spawn((
         Name::unit("Test"),
         PbrBundle {
-            mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
-            material: materials.add(Color::srgb_u8(124, 144, 255)),
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
+            mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
+            material: materials.add(Color::srgb_u8(2, 144, 255)),
+            transform: Transform::from_xyz(4.0, 0.5, 4.0),
             ..default()
         },
-        crate::board::Location::default(),
+        Agent::default(),
+        board::Location::default(),
+        board::Footprint::default(),
+        navigation::path::Target::Entity(id),
     ));
+}
+
+fn test_target(
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    cameras: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    board: Res<board::Board>,
+    mut target: Query<&mut Transform, With<MoveTo>>,
+) {
+    let window: &Window = single!(windows);
+    let (camera, cam_transform) = single!(cameras);
+    let mut target = single_mut!(target);
+
+    let Some(ray) = window
+        .cursor_position()
+        .and_then(|p| camera.viewport_to_world(cam_transform, p))
+    else {
+        return;
+    };
+
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Some(distance) = ray.intersect_plane(Vec3::ZERO, InfinitePlane3d::new(Dir3::Y)) else {
+        return;
+    };
+
+    let point = ray.origin + ray.direction * distance;
+    let hex = board.layout.world_pos_to_hex(point.xz());
+    target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }

@@ -15,8 +15,9 @@ pub(super) fn plugin(app: &mut App) {
     // #FB_TODO: replace with a derive macro?
     app.add_plugins(cleanup::plugin(OnEnter(AppState::InGame)));
     app.add_plugins(cleanup::plugin(OnExit(AppState::InGame)));
-    app.add_plugins(cleanup::plugin(OnEnter(AppState::Loading)));
-    app.add_plugins(cleanup::plugin(OnExit(AppState::Loading)));
+
+    // app.add_plugins(cleanup::plugin(OnEnter(AppState::Loading)));
+    // app.add_plugins(cleanup::plugin(OnExit(AppState::Loading)));
 }
 
 /// Component to mark own

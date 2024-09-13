@@ -22,21 +22,45 @@ pub(super) fn location(
     transforms
         .par_iter_mut()
         .for_each(|(mut location, transform)| {
-            let hex: Hex = board.layout.world_pos_to_hex(transform.translation().xz());
-            let value = if board.bounds.is_in_bounds(hex) {
-                Location::Valid(hex)
-            } else {
-                Location::Invalid
-            };
-
+            let value = calculate_location(&board, transform);
             if *location != value {
                 *location = value;
             }
         });
 }
 
+pub(super) fn on_board_built(
+    mut transforms: Query<(&mut Location, &GlobalTransform)>,
+    board: Res<Board>,
+) {
+    transforms
+        .par_iter_mut()
+        .for_each(|(mut location, transform)| {
+            let value = calculate_location(&board, transform);
+            if *location != value {
+                *location = value;
+            }
+        });
+}
+
+#[inline]
+fn calculate_location(board: &Board, transform: &GlobalTransform) -> Location {
+    let hex: Hex = board.layout.world_pos_to_hex(transform.translation().xz());
+    if board.bounds.is_in_bounds(hex) {
+        Location::Valid(hex)
+    } else {
+        Location::Invalid
+    }
+}
+
 #[cfg(feature = "dev")]
-pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<&Location>, board: Res<Board>) {
+pub(crate) fn gizmos(
+    mut gizmos: Gizmos,
+    entities: Query<&Location, Without<super::Cell>>,
+    board: Res<Board>,
+) {
+    use bevy::color::palettes::tailwind::CYAN_500;
+
     for location in &entities {
         let Location::Valid(hex) = location else {
             continue;
@@ -44,11 +68,11 @@ pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<&Location>, board: Res<
 
         let position = board.layout.hex_to_world_pos(*hex);
 
-        gizmos.rect(
+        gizmos.circle(
             position.x0y(),
-            Quat::from_rotation_x(PI / 2.),
-            board.layout.hex_size,
-            YELLOW.with_alpha(1.0),
+            Dir3::Y,
+            board.layout.hex_size.x.min(board.layout.hex_size.y) / 2.0,
+            CYAN_500,
         );
     }
 }

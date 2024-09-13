@@ -5,11 +5,12 @@ pub(crate) use crate::{
     despawn::*,
     name::*,
     previous::*,
-    util::{math_trait::*, *},
+    single, single_mut,
+    util::{math_ext::*, *},
 };
-pub use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};
-pub use avian3d::prelude::*;
-pub use bevy::{
+pub(crate) use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};
+pub(crate) use avian3d::prelude::*;
+pub(crate) use bevy::{
     color::palettes::css::{AQUA, LIMEGREEN, ORANGE, RED, VIOLET, WHITE, YELLOW},
     ecs::{query::QueryData, schedule::ScheduleLabel},
     log::*,
@@ -20,12 +21,15 @@ pub use bevy::{
     utils::{Duration, HashMap, HashSet, Instant},
     window::PrimaryWindow,
 };
-pub use bon::{bon, builder, Builder};
-pub use derive_more::{Display, From};
-pub use itertools::Itertools;
-pub use rand::prelude::*;
-pub use smallvec::SmallVec;
-pub use std::{default, f32::consts::PI, marker::PhantomData, sync::Arc};
-pub use thiserror::Error;
-pub use tiny_bail::prelude::*;
-pub use warband_macros::*;
+pub(crate) use bon::{bon, builder, Builder};
+pub(crate) use derive_more::{Display, From};
+pub(crate) use itertools::Itertools;
+pub(crate) use rand::prelude::*;
+pub(crate) use smallvec::SmallVec;
+pub(crate) use std::{default, f32::consts::PI, marker::PhantomData, sync::Arc};
+pub(crate) use thiserror::Error;
+pub(crate) use tiny_bail::prelude::*;
+pub(crate) use warband_macros::*;
+
+#[cfg(feature = "dev")]
+pub(crate) use crate::dev::gizmos_ext::GizmosExt;
