@@ -1,6 +1,7 @@
-pub mod math_trait;
+pub mod math_ext;
 pub mod pipe;
 
+#[macro_export]
 macro_rules! single {
     ($query:expr) => {
         match $query.get_single() {
@@ -12,6 +13,7 @@ macro_rules! single {
     };
 }
 
+#[macro_export]
 macro_rules! single_mut {
     ($query:expr) => {
         match $query.get_single_mut() {

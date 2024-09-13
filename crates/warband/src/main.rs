@@ -3,6 +3,7 @@
 use std::io::Cursor;
 
 use bevy::{
+    log::LogPlugin,
     prelude::*,
     render::RenderPlugin,
     window::{PresentMode, PrimaryWindow, WindowPlugin},
@@ -20,7 +21,10 @@ pub fn main() {
 
     let mut app = App::new();
 
-    let default_plugins = DefaultPlugins.set(window_plugin()).set(render_plugin());
+    let default_plugins = DefaultPlugins
+        .set(window_plugin())
+        .set(render_plugin())
+        .set(log_plugin());
 
     app.add_plugins(
         default_plugins
@@ -59,6 +63,14 @@ fn render_plugin() -> RenderPlugin {
                 ..default()
             },
         ),
+        ..default()
+    }
+}
+
+fn log_plugin() -> LogPlugin {
+    LogPlugin {
+        #[cfg(feature = "dev")]
+        custom_layer: warband_lib::custom_log_layer,
         ..default()
     }
 }

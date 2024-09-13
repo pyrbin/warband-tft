@@ -32,6 +32,7 @@ fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
             transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
+        IsDefaultUiCamera,
         DepthPrepass,
         NormalPrepass,
         camera_driver::RigTransform::default(),

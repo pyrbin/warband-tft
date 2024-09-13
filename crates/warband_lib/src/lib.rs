@@ -12,6 +12,7 @@ use prelude::*;
 pub use version::*;
 mod board;
 mod core;
+mod navigation;
 mod player;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash, Reflect)]
@@ -30,7 +31,11 @@ pub fn plugin(app: &mut App) {
         in_game::plugin,
         board::plugin,
         player::plugin,
+        navigation::plugin,
         #[cfg(feature = "dev")]
         dev::plugin,
     ));
 }
+
+#[cfg(feature = "dev")]
+pub use dev::custom_log_layer;
