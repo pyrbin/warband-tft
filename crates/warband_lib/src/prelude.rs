@@ -5,6 +5,7 @@ pub(crate) use crate::{
     despawn::*,
     name::*,
     previous::*,
+    required_component::*,
     single, single_mut,
     util::{math_ext::*, *},
 };

@@ -24,7 +24,7 @@ pub(super) fn plugin(app: &mut App) {
             ..default()
         },
         GizmoConfig {
-            enabled: false,
+            enabled: true,
             ..default()
         },
     )
@@ -32,14 +32,6 @@ pub(super) fn plugin(app: &mut App) {
     .insert_resource(DebugPickingMode::Normal);
 
     app.add_plugins((perf::plugin, console::plugin));
-
-    if !app.is_plugin_added::<bevy_inspector_egui::DefaultInspectorConfigPlugin>() {
-        app.add_plugins(bevy_inspector_egui::DefaultInspectorConfigPlugin);
-    }
-
-    if !app.is_plugin_added::<bevy_egui::EguiPlugin>() {
-        app.add_plugins(bevy_egui::EguiPlugin);
-    }
 
     app.add_systems(OnExit(AppState::Loading), semver_ui);
     app.add_systems(

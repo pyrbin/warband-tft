@@ -37,24 +37,23 @@ fn setup(
     let cube_mesh = meshes.add(Cuboid::default());
 
     commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh.clone(),
-            material: materials.add(Color::srgb(0.1, 0.1, 0.2)),
-            transform: Transform::from_xyz(0.0, -0.51, 0.0)
-                .with_scale(Vec3::new(100.0, 1.0, 100.0)),
+        Name::unit("floor"),
+        SpatialBundle {
+            transform: Transform::from_translation(Vec3::Y * -0.05),
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(1.0, 1.0, 1.0),
+        Collider::cuboid(100.0, 0.1, 100.0),
     ));
 
     commands.spawn((
+        Name::unit("obstacle"),
         SpatialBundle {
-            transform: Transform::from_translation(Vec3::ZERO),
+            transform: Transform::from_xyz(-2.0, 2.0, -2.0),
             ..default()
         },
         RigidBody::Dynamic,
-        Collider::cuboid(2.0, 2.0, 2.0),
+        Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),
     ));

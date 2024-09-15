@@ -2,7 +2,7 @@ use bevy::tasks::AsyncComputeTaskPool;
 use hexx::{algorithms::a_star, Hex};
 
 use crate::{
-    board::{self, occupied, Footprint, Location},
+    board::{self, Footprint, Location},
     prelude::*,
 };
 use std::sync::{Arc, RwLock};
@@ -16,6 +16,7 @@ pub enum Target {
     Cell(Hex),
 }
 
+// #FB_TODO: convert to enum to handle Target::None case
 #[derive(Component, Clone, Copy, Default, Deref, DerefMut, From, Reflect)]
 #[reflect(Component)]
 pub struct TargetLocation(Hex);
@@ -23,9 +24,6 @@ pub struct TargetLocation(Hex);
 pub(super) fn target_location(
     mut with_target_location: Query<(&Target, &mut TargetLocation)>,
     with_location: Query<&Location>,
-    commands: ParallelCommands,
-    without_target_location: Query<Entity, (With<Target>, Without<TargetLocation>)>,
-    mut removed_target: RemovedComponents<Target>,
 ) {
     with_target_location
         .par_iter_mut()
@@ -48,20 +46,6 @@ pub(super) fn target_location(
                 target_location.0 = location;
             }
         });
-
-    without_target_location.par_iter().for_each(|entity| {
-        commands.command_scope(|mut c| {
-            c.entity(entity).insert(TargetLocation::default());
-        })
-    });
-
-    for entity in &mut removed_target.read() {
-        commands.command_scope(|mut c| {
-            if let Some(mut commands) = c.get_entity(entity) {
-                commands.remove::<TargetLocation>();
-            }
-        });
-    }
 }
 
 #[derive(Component, Deref, DerefMut, Reflect, Default)]
@@ -77,7 +61,7 @@ pub(super) fn on_changed(
     footprints: Query<Entity, Changed<Footprint>>,
     obstacles: Res<board::Occupied>,
 ) {
-    if footprints.is_empty() || !obstacles.is_changed() {
+    if !obstacles.is_changed() || footprints.is_empty() {
         return;
     }
 
@@ -104,6 +88,8 @@ pub(super) fn compute(
         let Location::Valid(start) = *location else {
             return;
         };
+
+        // #FB_TODO: handle Target::None case and remove Path component if no path can be computed
 
         let end = target.0;
 

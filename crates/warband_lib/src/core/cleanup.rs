@@ -2,6 +2,7 @@ use bevy::ecs::intern::Interned;
 
 use crate::prelude::*;
 
+// #FB_TODO: Need to rework, as OnEnter/OnExit gives same type for different state enum variants...
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Cleanup<T: ScheduleLabel>(pub T);

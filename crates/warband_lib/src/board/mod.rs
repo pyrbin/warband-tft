@@ -57,7 +57,7 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         FixedUpdate,
         (
-            build.in_set(BoardSystems::Footprint),
+            build.in_set(BoardSystems::Build),
             (
                 location::location,
                 location::on_board_built.run_if(on_event::<BoardBuiltEvent>()),
@@ -65,7 +65,9 @@ pub(super) fn plugin(app: &mut App) {
                 .in_set(BoardSystems::Location),
             footprint::agents.in_set(BoardSystems::Footprint),
             footprint::obstacles.in_set(BoardSystems::Footprint),
-            occupied::splat.in_set(BoardSystems::Occupied),
+            (apply_deferred, occupied::splat)
+                .chain()
+                .in_set(BoardSystems::Occupied),
         ),
     );
 }
@@ -85,7 +87,7 @@ pub struct BoardSettings {
     // Orientation of the board.
     #[builder(default)]
     pub orientation: HexOrientation,
-    /// Upward shift to sample obstacle from the ground
+    /// Obstacle scale
     #[builder(default)]
     #[inspector(min = 0.0, max = 10.0)]
     pub obstacle_scale: f32,
@@ -114,7 +116,11 @@ impl Board {
 impl FromWorld for Board {
     fn from_world(world: &mut World) -> Self {
         let entity = world
-            .spawn((SpatialBundle { ..default() }, Name::new("board")))
+            .spawn((
+                Name::unit("board"),
+                SpatialBundle { ..default() },
+                BoardHolder,
+            ))
             .id();
 
         Self {
@@ -163,6 +169,9 @@ fn axial_to_xy(hex: Hex, orientation: HexOrientation) -> (i32, i32) {
         HexOrientation::Pointy => (q + (r - (r & 1)) / 2, r),
     }
 }
+
+#[derive(Component, Debug, Reflect)]
+pub struct BoardHolder;
 
 #[derive(Component, Debug, Reflect)]
 pub struct Cell;
@@ -238,8 +247,10 @@ fn build(
         board_settings.height,
         board_settings.orientation,
     );
+    board.transform.translation = Vec3::new(board.layout.origin.x, 0.0, board.layout.origin.y);
+    board.transform.rotation = Quat::IDENTITY;
 
-    event_writer.send(BoardBuiltEvent::default());
+    event_writer.send(BoardBuiltEvent);
 }
 
 fn circle_column(hex_layout: &HexLayout) -> Mesh {

@@ -22,7 +22,7 @@ pub(super) fn location(
     transforms
         .par_iter_mut()
         .for_each(|(mut location, transform)| {
-            let value = calculate_location(&board, transform);
+            let value = to_location(&board, transform);
             if *location != value {
                 *location = value;
             }
@@ -36,7 +36,7 @@ pub(super) fn on_board_built(
     transforms
         .par_iter_mut()
         .for_each(|(mut location, transform)| {
-            let value = calculate_location(&board, transform);
+            let value = to_location(&board, transform);
             if *location != value {
                 *location = value;
             }
@@ -44,7 +44,7 @@ pub(super) fn on_board_built(
 }
 
 #[inline]
-fn calculate_location(board: &Board, transform: &GlobalTransform) -> Location {
+fn to_location(board: &Board, transform: &GlobalTransform) -> Location {
     let hex: Hex = board.layout.world_pos_to_hex(transform.translation().xz());
     if board.bounds.is_in_bounds(hex) {
         Location::Valid(hex)

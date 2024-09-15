@@ -24,7 +24,7 @@ impl Footprint {
 pub(super) fn agents(
     mut agents: Query<
         (&mut Footprint, &Location, &Agent),
-        Or<(Changed<Location>, Added<Footprint>, Without<Cell>)>,
+        (Or<(Changed<Location>, Added<Footprint>)>, Without<Cell>),
     >,
     board: Res<Board>,
 ) {
@@ -56,29 +56,68 @@ pub(super) fn obstacles(
     board: Res<Board>,
     board_settings: Res<BoardSettings>,
 ) {
-    let hexes: Vec<Hex> = board.entities.keys().copied().collect();
-
-    obstacles
-        .par_iter_mut()
-        .for_each(|(mut footprint, location, global_transform, collider)| {
-            let Location::Valid(_) = location else {
-                *footprint = Footprint::Empty;
-                return;
-            };
-
-            let polygon = collider.get_polygon(
-                global_transform,
-                &board.transform,
-                (Dir3::Y, board_settings.upward_shift),
-            );
-            *footprint = Footprint::Cells(
-                hexes
-                    .iter()
-                    .copied()
-                    .filter(|h| point_in_poly2d(board.layout.hex_to_world_pos(*h), &polygon))
+    // perf: cache this
+    let hexes_with_points: Vec<(Hex, Vec<Vec2>)> = board
+        .cells()
+        .map(|(h, _)| {
+            (
+                h,
+                std::iter::once(board.layout.hex_to_world_pos(h))
+                    .chain(board.layout.all_edge_coordinates(h).map(|d| d[0]))
                     .collect(),
-            );
-        });
+            )
+        })
+        .collect();
+
+    for (mut footprint, location, global_transform, collider) in &mut obstacles {
+        let Location::Valid(_) = location else {
+            *footprint = Footprint::Empty;
+            return;
+        };
+
+        let polygon = collider.get_polygon(
+            global_transform,
+            &board.transform,
+            (Dir3::Y, board_settings.upward_shift),
+        );
+
+        *footprint = Footprint::Cells(
+            hexes_with_points
+                .iter()
+                .filter_map(|(h, p)| {
+                    const MIN_EDGE_INTERSECTIONS: usize = 2;
+                    if at_least(
+                        p.iter(),
+                        |p| point_in_poly2d(**p, &polygon),
+                        MIN_EDGE_INTERSECTIONS,
+                    ) {
+                        Some(*h)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        );
+    }
+}
+
+#[inline]
+fn at_least<I, F>(iter: I, mut predicate: F, count: usize) -> bool
+where
+    I: IntoIterator,
+    F: FnMut(&I::Item) -> bool,
+{
+    assert!(count > 0);
+    let mut matches = 0;
+    for item in iter {
+        if predicate(&item) {
+            matches += 1;
+            if matches >= count {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// ref: https://github.com/Jondolf/barry/blob/main/src/utils/point_in_poly2d.rs

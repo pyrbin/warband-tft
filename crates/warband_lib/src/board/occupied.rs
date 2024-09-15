@@ -1,5 +1,3 @@
-use std::ops::DerefMut;
-
 use avian3d::{
     parry::{
         na::{Const, OPoint, Unit, Vector3},
@@ -23,21 +21,24 @@ pub struct OccupiedBoard(DashMap<Hex, HashSet<Entity>>);
 
 impl OccupiedBoard {
     pub fn cells(&self) -> impl Iterator<Item = Hex> + '_ {
-        self.iter().map(|v| v.key().clone())
+        self.iter().map(|v| *v.key())
     }
 }
 
 pub(super) fn splat(
-    footprints: Query<(Entity, &Footprint), Changed<Footprint>>,
+    footprints_changed: Query<Entity, Changed<Footprint>>,
+    footprints: Query<(Entity, &Footprint)>,
     obstacles: ResMut<Occupied>,
 ) {
-    let obstacles = obstacles.clone();
+    if footprints_changed.is_empty() {
+        return;
+    }
 
     obstacles.clear();
 
     for (entity, footprint) in &footprints {
         for hex in footprint.cells().copied() {
-            obstacles.0.entry(hex).or_default().insert(entity);
+            obstacles.entry(hex).or_default().insert(entity);
         }
     }
 }
@@ -83,7 +84,7 @@ impl<'a> InnerGetPolygon for TypedShape<'a> {
         (up, shift): (Dir3, f32),
     ) -> Vec<Vec2> {
         const RESOLUTION: u32 = 32;
-        // TODO: fix this
+
         let mut transform = obstacle.compute_transform();
         transform.scale = Vec3::ONE;
         let world_to_board = board.compute_affine().inverse();
@@ -102,8 +103,15 @@ impl<'a> InnerGetPolygon for TypedShape<'a> {
                 / (up.x.powi(2) + up.y.powi(2) + up.z.powi(2)).sqrt();
         let shift: f32 = shift - d;
 
-        let to_world = |p: &OPoint<f32, Const<3>>| transform.transform_point(vec3(p.x, 0.0, p.y));
+        // #FB_NOTE: not sure why but using 0.0 causes error in parry
+        const MIN_SHIFT: f32 = 0.01;
+        let shift = if shift < 0.0 {
+            shift.min(-MIN_SHIFT)
+        } else {
+            shift.max(MIN_SHIFT)
+        };
 
+        let to_world = |p: &OPoint<f32, Const<3>>| transform.transform_point(vec3(p.x, p.y, p.z));
         let up_axis = Unit::new_normalize(Vector3::new(up.x, up.y, up.z));
         let trimesh_to_world = |vertices: Vec<OPoint<f32, Const<3>>>| {
             vertices

@@ -27,7 +27,11 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         FixedUpdate,
         (
-            path::target_location.in_set(NavigationSystems::Maintain),
+            (
+                required_component::<path::Target, path::TargetLocation>,
+                path::target_location,
+            )
+                .in_set(NavigationSystems::Maintain),
             (path::on_changed, path::on_target_changed).in_set(NavigationSystems::DetectChanges),
             (path::compute, path::poll).in_set(NavigationSystems::Pathfinding),
         ),

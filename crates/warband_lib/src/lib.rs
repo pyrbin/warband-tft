@@ -13,6 +13,7 @@ pub use version::*;
 mod board;
 mod core;
 mod navigation;
+mod physics;
 mod player;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash, Reflect)]
@@ -32,6 +33,7 @@ pub fn plugin(app: &mut App) {
         board::plugin,
         player::plugin,
         navigation::plugin,
+        physics::plugin,
         #[cfg(feature = "dev")]
         dev::plugin,
     ));
