@@ -7,6 +7,7 @@ pub(crate) use crate::{
     previous::*,
     required_component::*,
     single, single_mut,
+    stats::stat::Stat,
     util::{math_ext::*, *},
 };
 pub(crate) use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};

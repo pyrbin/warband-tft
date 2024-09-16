@@ -17,9 +17,13 @@ pub enum Target {
 }
 
 // #FB_TODO: convert to enum to handle Target::None case
-#[derive(Component, Clone, Copy, Default, Deref, DerefMut, From, Reflect)]
+#[derive(Component, Clone, Copy, Default, From, Reflect, PartialEq)]
 #[reflect(Component)]
-pub struct TargetLocation(Hex);
+pub enum TargetLocation {
+    #[default]
+    None,
+    Value(Hex),
+}
 
 pub(super) fn target_location(
     mut with_target_location: Query<(&Target, &mut TargetLocation)>,
@@ -28,22 +32,24 @@ pub(super) fn target_location(
     with_target_location
         .par_iter_mut()
         .for_each(|(target, mut target_location)| {
-            let location: Hex = match target {
-                Target::Cell(hex) => *hex,
+            let location: TargetLocation = match target {
+                Target::Cell(hex) => TargetLocation::Value(*hex),
                 Target::Entity(entity) => {
-                    let Ok(location) = with_location.get(*entity) else {
-                        return;
-                    };
-                    let Location::Valid(hex) = *location else {
-                        return;
-                    };
-                    hex
+                    if let Ok(location) = with_location.get(*entity) {
+                        if let Location::Valid(hex) = *location {
+                            TargetLocation::Value(hex)
+                        } else {
+                            TargetLocation::None
+                        }
+                    } else {
+                        TargetLocation::None
+                    }
                 }
-                Target::None => return,
+                Target::None => TargetLocation::None,
             };
 
-            if target_location.0 != location {
-                target_location.0 = location;
+            if *target_location != location {
+                *target_location = location;
             }
         });
 }
@@ -89,11 +95,13 @@ pub(super) fn compute(
             return;
         };
 
-        // #FB_TODO: handle Target::None case and remove Path component if no path can be computed
-
-        let end = target.0;
+        let TargetLocation::Value(end) = *target else {
+            commands.entity(entity).remove::<Path>();
+            continue;
+        };
 
         if start == end {
+            commands.entity(entity).remove::<Path>();
             continue;
         }
 
@@ -131,6 +139,7 @@ pub(super) fn poll(
                     .insert(Path(
                         path.iter()
                             .copied()
+                            // #FB_NOTE: skip the first hex, which is the start hex
                             .skip(1)
                             .map(|h| board.layout.hex_to_world_pos(h))
                             .collect(),

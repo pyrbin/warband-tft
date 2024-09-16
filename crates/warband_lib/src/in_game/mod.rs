@@ -3,10 +3,16 @@ use crate::{
     navigation::{self, agent::Agent},
     player::camera::MainCamera,
     prelude::*,
+    stats::{
+        modifier::{self},
+        stat,
+    },
     AppState,
 };
 
 pub fn plugin(app: &mut App) {
+    app.add_plugins(stat::plugin::<Health>().call());
+
     app.add_systems(OnEnter(AppState::InGame), setup);
     app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
 }
@@ -46,18 +52,6 @@ fn setup(
         Collider::cuboid(100.0, 0.1, 100.0),
     ));
 
-    commands.spawn((
-        Name::unit("obstacle"),
-        SpatialBundle {
-            transform: Transform::from_xyz(-2.0, 2.0, -2.0),
-            ..default()
-        },
-        RigidBody::Dynamic,
-        Collider::cuboid(4.0, 4.0, 4.0),
-        board::Location::default(),
-        board::Footprint::default(),
-    ));
-
     let id = commands
         .spawn((
             Name::unit("Target"),
@@ -70,23 +64,43 @@ fn setup(
             Agent::default(),
             board::Location::default(),
             board::Footprint::default(),
+            Health::default(),
+            modifier::Flat(Health(200.0)),
+            // Health::pool(100.0),
             MoveTo,
         ))
         .id();
 
     // unit
+    let test_id = commands
+        .spawn((
+            Name::unit("Test"),
+            PbrBundle {
+                mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
+                material: materials.add(Color::srgb_u8(2, 144, 255)),
+                transform: Transform::from_xyz(4.0, 0.5, 4.0),
+                ..default()
+            },
+            // Health::pool(100.0),
+            Agent::default(),
+            board::Location::default(),
+            board::Footprint::default(),
+            navigation::path::Target::Entity(id),
+        ))
+        .id();
+
     commands.spawn((
-        Name::unit("Test"),
-        PbrBundle {
-            mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
-            material: materials.add(Color::srgb_u8(2, 144, 255)),
-            transform: Transform::from_xyz(4.0, 0.5, 4.0),
+        Name::unit("obstacle"),
+        SpatialBundle {
+            transform: Transform::from_xyz(-2.0, 2.0, -2.0),
             ..default()
         },
-        Agent::default(),
+        RigidBody::Dynamic,
+        Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),
-        navigation::path::Target::Entity(id),
+        // modifier::flat::<Health>(100.0),
+        // modifier::Modifies::Single(test_id),
     ));
 }
 
@@ -120,3 +134,6 @@ fn test_target(
     let hex = board.layout.world_pos_to_hex(point.xz());
     target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }
+
+#[derive(Stat, Component, Reflect)]
+struct Health(f32);

@@ -65,9 +65,7 @@ pub(super) fn plugin(app: &mut App) {
                 .in_set(BoardSystems::Location),
             footprint::agents.in_set(BoardSystems::Footprint),
             footprint::obstacles.in_set(BoardSystems::Footprint),
-            (apply_deferred, occupied::splat)
-                .chain()
-                .in_set(BoardSystems::Occupied),
+            occupied::splat.chain().in_set(BoardSystems::Occupied),
         ),
     );
 }

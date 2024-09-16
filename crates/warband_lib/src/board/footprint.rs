@@ -82,9 +82,11 @@ pub(super) fn obstacles(
         );
 
         *footprint = Footprint::Cells(
+            // perf: is there a better way to do this?
             hexes_with_points
                 .iter()
                 .filter_map(|(h, p)| {
+                    // NOTE: the intersection polygon has to contain at least 2 points.
                     const MIN_EDGE_INTERSECTIONS: usize = 2;
                     if at_least(
                         p.iter(),

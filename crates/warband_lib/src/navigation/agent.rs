@@ -14,6 +14,7 @@ impl Default for Agent {
 
 impl Agent {
     pub fn with_size(size: u8) -> Self {
+        assert!(size > 0);
         Self { size }
     }
 

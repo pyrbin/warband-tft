@@ -7,7 +7,7 @@ pub(crate) enum DespawnSystems {
 }
 
 pub(super) fn plugin(app: &mut App) {
-    app_register_types!(Despawn, DespawnInProgress);
+    app_register_types!(Despawn, Despawning);
 
     app.configure_sets(
         Last,
@@ -17,9 +17,8 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         Last,
         (
-            despawn_timer.in_set(DespawnSystems::Timer),
-            apply_deferred,
-            despawn.in_set(DespawnSystems::Timer),
+            despawn_timer.chain().in_set(DespawnSystems::Timer),
+            despawning.in_set(DespawnSystems::Despawn),
         )
             .chain(),
     );
@@ -39,7 +38,7 @@ pub enum Despawn {
 }
 
 #[derive(Component, Default, Reflect)]
-pub struct DespawnInProgress;
+pub struct Despawning;
 
 fn despawn_timer(
     mut commands: Commands,
@@ -66,13 +65,13 @@ fn despawn_timer(
             commands
                 .entity(entity)
                 .remove::<Despawn>()
-                .insert(DespawnInProgress);
+                .insert(Despawning);
         }
     }
 }
 
-fn despawn(mut commands: Commands, to_despawn: Query<Entity, With<DespawnInProgress>>) {
-    for entity in &to_despawn {
+fn despawning(mut commands: Commands, despawning: Query<Entity, Added<Despawning>>) {
+    for entity in &despawning {
         commands.entity(entity).despawn_recursive();
     }
 }
