@@ -1,137 +1,18 @@
-use std::marker::PhantomData;
-
-use bevy::utils::all_tuples;
-use smallvec::SmallVec;
-
-use super::{stat::Stat, StatSystem};
 use crate::prelude::*;
 
-#[builder]
-pub(crate) fn plugin<M: Stat, S: ModifiableStats>() -> ModifierPlugin<M, S>
-where
-    M: GetTypeRegistration,
-{
-    ModifierPlugin {
-        ..Default::default()
-    }
-}
+use super::StatSystems;
 
-pub(crate) fn flat<S: Stat + From<f32>>(value: f32) -> Flat<S> {
-    Flat(value.into())
-}
+pub(super) fn plugin<M: Modifier<S> + Component, S: Stat + Component>(app: &mut App) {
+    app.add_systems(PostUpdate, changed::<M, S>.in_set(StatSystems::Dirty));
 
-pub(crate) fn mult<S: Stat + From<f32>>(value: f32) -> Mult<S> {
-    Mult(value.into())
-}
-
-pub struct ModifierPlugin<M: Stat, S: ModifiableStats>(PhantomData<M>, PhantomData<S>)
-where
-    M: GetTypeRegistration;
-
-impl<M: Stat, S: ModifiableStats> Plugin for ModifierPlugin<M, S>
-where
-    M: GetTypeRegistration,
-{
-    fn build(&self, app: &mut App) {
-        app_register_types!(Flat<M>, Mult<M>, M);
-        S::register::<M>(app);
-    }
-}
-
-impl<M: Stat, S: ModifiableStats> Default for ModifierPlugin<M, S>
-where
-    M: GetTypeRegistration,
-{
-    fn default() -> Self {
-        Self(PhantomData, PhantomData)
-    }
-}
-
-fn register_single_modifier_pair<M: Stat, S: Stat>(app: &mut App)
-where
-    M: GetTypeRegistration,
-    S: Component,
-{
-    app.observe(removed::<Flat<M>, M, S>)
-        .observe(removed::<Mult<M>, M, S>);
+    app.observe(removed::<M, S>);
 
     app.add_systems(
         PostUpdate,
-        (changed::<Flat<M>, M, S>, changed::<Mult<M>, M, S>)
+        (add_accumulate::<M, S>, accumulate::<M, S>)
             .chain()
-            .in_set(StatSystem::Dirty),
+            .in_set(StatSystems::Accumulate),
     );
-
-    app.add_systems(
-        PostUpdate,
-        apply::<Flat<M>, M, S>.in_set(StatSystem::ModifierFlat),
-    );
-
-    app.add_systems(
-        PostUpdate,
-        apply::<Mult<M>, M, S>.in_set(StatSystem::ModifierMult),
-    );
-}
-
-pub trait ModifiableStats: Send + Sync + 'static {
-    fn register<M: Stat + GetTypeRegistration>(app: &mut App);
-}
-
-impl<S: Stat + Component + GetTypeRegistration> ModifiableStats for S {
-    fn register<M: Stat + GetTypeRegistration>(app: &mut App) {
-        register_single_modifier_pair::<M, S>(app);
-    }
-}
-
-macro_rules! impl_modifiable_stats_tuple{
-    ($($name: ident),*) => {
-        impl<$($name: Stat + Component + GetTypeRegistration),*> ModifiableStats for ($($name,)*)
-        {
-            #[allow(unused)]
-            fn register<M: Stat + GetTypeRegistration>(app: &mut App) {
-                $(
-                    register_single_modifier_pair::<M, $name>(app);
-                )*
-            }
-        }
-    };
-}
-
-all_tuples!(impl_modifiable_stats_tuple, 0, 15, B);
-
-pub trait Modifier<S: Stat>: Default + Send + Sync + 'static {
-    fn apply(&self, stat: &mut S);
-    fn value(&self) -> f32;
-}
-
-#[derive(Component, Default, Reflect, FromReflect, Deref, DerefMut, From)]
-#[reflect(from_reflect = false)]
-pub struct Flat<S: Stat>(pub S);
-
-impl<S: Stat, M: Stat> Modifier<S> for Flat<M> {
-    #[inline]
-    fn apply(&self, stat: &mut S) {
-        *stat.value_mut() += <Flat<M> as Modifier<S>>::value(self);
-    }
-
-    fn value(&self) -> f32 {
-        self.0.value()
-    }
-}
-
-#[derive(Component, Default, Reflect, FromReflect, Deref, DerefMut, From)]
-#[reflect(from_reflect = false)]
-pub struct Mult<S: Stat>(pub S);
-
-impl<S: Stat, M: Stat> Modifier<S> for Mult<M> {
-    #[inline]
-    fn apply(&self, stat: &mut S) {
-        *stat.value_mut() *= <Mult<M> as Modifier<S>>::value(self);
-    }
-
-    fn value(&self) -> f32 {
-        self.0.value()
-    }
 }
 
 #[derive(Component, Clone, Reflect, From)]
@@ -140,10 +21,95 @@ pub enum Modifies {
     Many(SmallVec<[Entity; 8]>),
 }
 
+pub trait Modifier<S: Stat>: Default + Send + Sync + 'static {
+    fn apply(value: f32, accumulated: f32) -> f32;
+
+    fn value(&self) -> f32;
+
+    fn base() -> f32 {
+        0.0
+    }
+}
+
+#[derive(Component, Default, Reflect, FromReflect, Deref, DerefMut, From)]
+#[reflect(from_reflect = false)]
+pub struct Flat<S: Stat>(pub S);
+
+impl<S: Stat, M: Stat> Modifier<S> for Flat<M> {
+    fn apply(value: f32, accumulated: f32) -> f32 {
+        value + accumulated
+    }
+
+    fn value(&self) -> f32 {
+        self.0.value()
+    }
+}
+
+#[derive(Component, Default, Reflect, FromReflect, Deref, DerefMut, From)]
+#[reflect(from_reflect = false)]
+pub struct Additive<S: Stat>(pub S);
+
+impl<S: Stat, M: Stat> Modifier<S> for Additive<M> {
+    fn apply(value: f32, accumulated: f32) -> f32 {
+        value * accumulated
+    }
+
+    fn value(&self) -> f32 {
+        self.0.value()
+    }
+
+    fn base() -> f32 {
+        1.0
+    }
+}
+
+#[derive(Component, Default, Reflect, FromReflect, Deref, DerefMut, From)]
+#[reflect(from_reflect = false)]
+pub struct Mult<S: Stat>(pub S);
+
+impl<S: Stat, M: Stat> Modifier<S> for Mult<M> {
+    fn apply(value: f32, accumulated: f32) -> f32 {
+        value * accumulated
+    }
+
+    fn value(&self) -> f32 {
+        self.0.value()
+    }
+
+    fn base() -> f32 {
+        1.0
+    }
+}
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+#[component(storage = "SparseSet")]
+pub struct Accumulated<M: Modifier<S>, S: Stat> {
+    pub value: f32,
+    pub _marker: std::marker::PhantomData<(M, S)>,
+}
+
+impl<M: Modifier<S>, S: Stat> Accumulated<M, S> {
+    fn new(value: f32) -> Self {
+        Self {
+            value,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    fn add(&mut self, value: f32) {
+        self.value += value;
+    }
+
+    fn compute(&self, value: f32) -> f32 {
+        M::apply(value, self.value)
+    }
+}
+
 type NonDirtyStatFilter<S> = (With<S>, Without<Dirty<S>>);
 
-/// NOTE: exported as it should only be registered once per [Stat] (in [StatPlugin])
-pub(super) fn target_changed<S: Stat>(
+/// note: registered per [Stat] in [super::stat::plugin]
+pub(super) fn modifies_changed<S: Stat>(
     mut commands: Commands,
     mut stats: Query<Entity, NonDirtyStatFilter<S>>,
     modifiers: Query<(&Modifies, &Previous<Modifies>), Changed<Modifies>>,
@@ -170,7 +136,7 @@ pub(super) fn target_changed<S: Stat>(
     }
 }
 
-fn changed<M: Modifier<T>, T: Stat, S: Stat>(
+fn changed<M: Modifier<S>, S: Stat>(
     mut commands: Commands,
     mut stats: Query<Entity, NonDirtyStatFilter<S>>,
     modifiers: Query<(Entity, Option<&Parent>, Option<&Modifies>), Changed<M>>,
@@ -179,34 +145,35 @@ fn changed<M: Modifier<T>, T: Stat, S: Stat>(
     M: Component + Modifier<S>,
     S: Component,
 {
-    let mut add_dirty_stat = |entity: &Entity| {
-        if stats.get_mut(*entity).is_ok() {
-            commands.entity(*entity).insert(Dirty::<S>::default());
+    let mut add_dirty_stat = |entity: Entity| {
+        if stats.get_mut(entity).is_ok() {
+            commands.entity(entity).insert(Dirty::<S>::default());
         }
     };
 
-    for (entity, maybe_parent, maybe_target) in modifiers.iter() {
+    for (entity, maybe_parent, maybe_target) in &modifiers {
         let modifier_target = maybe_target
             .or(maybe_parent.and_then(|p| modifier_parents.get(p.get()).ok().map(|(_, t)| t)));
 
         match modifier_target {
-            Some(Modifies::Single(entity)) => add_dirty_stat(entity),
+            Some(Modifies::Single(entity)) => add_dirty_stat(*entity),
             Some(Modifies::Many(entities)) => {
                 for entity in entities.iter() {
-                    add_dirty_stat(entity)
+                    add_dirty_stat(*entity);
                 }
             }
             None => {
                 if let Some(parent) = maybe_parent {
-                    add_dirty_stat(&parent.get())
+                    add_dirty_stat(parent.get())
                 }
-                add_dirty_stat(&entity)
+
+                add_dirty_stat(entity);
             }
         }
     }
 }
 
-fn removed<M: Modifier<T>, T: Stat, S: Stat>(
+fn removed<M: Modifier<S>, S: Stat>(
     trigger: Trigger<OnRemove, M>,
     non_dirty: Query<Entity, NonDirtyStatFilter<S>>,
     modifiers: Query<(Entity, Option<&Parent>, Option<&Modifies>), With<M>>,
@@ -235,21 +202,31 @@ fn removed<M: Modifier<T>, T: Stat, S: Stat>(
         Some(Modifies::Single(entity)) => add_dirty_stat(entity),
         Some(Modifies::Many(entities)) => {
             for entity in entities.iter() {
-                add_dirty_stat(entity)
+                add_dirty_stat(entity);
             }
         }
         None => {
             if let Some(parent) = maybe_parent {
-                add_dirty_stat(&parent.get())
+                add_dirty_stat(&parent.get());
             }
 
-            add_dirty_stat(&entity)
+            add_dirty_stat(&entity);
         }
     }
 }
 
-fn apply<M: Modifier<T>, T: Stat, S: Stat>(
-    mut stats: Query<&mut S, With<Dirty<S>>>,
+fn add_accumulate<M: Modifier<S>, S: Stat + Component>(
+    with_dirty: Query<Entity, With<Dirty<S>>>,
+    mut commands: Commands,
+) {
+    for entity in &with_dirty {
+        let accumulated = Accumulated::<M, S>::new(M::base());
+        commands.entity(entity).insert(accumulated);
+    }
+}
+
+fn accumulate<M: Modifier<S>, S: Stat>(
+    mut stats: Query<&mut Accumulated<M, S>, With<Dirty<S>>>,
     modifiers: Query<(Entity, &M, Option<&Parent>, Option<&Modifies>)>,
     modifier_parents: Query<(Entity, &Modifies)>,
 ) where
@@ -258,8 +235,8 @@ fn apply<M: Modifier<T>, T: Stat, S: Stat>(
 {
     for (entity, modifier, maybe_parent, maybe_target) in modifiers.iter() {
         let mut apply_modifier = |entity: &Entity| {
-            if let Ok(mut stat) = stats.get_mut(*entity) {
-                <M as Modifier<S>>::apply(modifier, &mut stat);
+            if let Ok(mut accumulated) = stats.get_mut(*entity) {
+                accumulated.add(modifier.value());
             }
         };
 
@@ -270,16 +247,48 @@ fn apply<M: Modifier<T>, T: Stat, S: Stat>(
             Some(Modifies::Single(entity)) => apply_modifier(entity),
             Some(Modifies::Many(entities)) => {
                 for entity in entities.iter() {
-                    apply_modifier(entity)
+                    apply_modifier(entity);
                 }
             }
             None => {
                 if let Some(parent) = maybe_parent {
-                    apply_modifier(&parent.get())
+                    apply_modifier(&parent.get());
                 }
 
-                apply_modifier(&entity)
+                apply_modifier(&entity);
             }
         }
+    }
+}
+
+/// note: registered per [Stat] in [super::stat::plugin]
+pub(super) fn compute<S: Stat + Component>(
+    mut stat: Query<
+        (
+            Entity,
+            &mut S,
+            &Accumulated<Flat<S>, S>,
+            &Accumulated<Additive<S>, S>,
+            &Accumulated<Mult<S>, S>,
+        ),
+        With<Dirty<S>>,
+    >,
+    mut commands: Commands,
+) {
+    for (entity, mut stat, flat, additive, multiplicative) in &mut stat {
+        const BASE: f32 = 0.0;
+
+        // ((base + flat) * additive) * multiplicative
+        let computed = multiplicative.compute(additive.compute(flat.compute(BASE)));
+
+        if stat.value() != computed {
+            *stat = S::new(computed);
+        }
+
+        commands
+            .entity(entity)
+            .remove::<Accumulated<Flat<S>, S>>()
+            .remove::<Accumulated<Additive<S>, S>>()
+            .remove::<Accumulated<Mult<S>, S>>();
     }
 }

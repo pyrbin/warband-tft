@@ -3,18 +3,15 @@ use crate::{
     navigation::{self, agent::Agent},
     player::camera::MainCamera,
     prelude::*,
-    stats::{
-        modifier::{self},
-        stat,
-    },
+    stats::stat,
     AppState,
 };
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins(stat::plugin::<Health>().call());
-
     app.add_systems(OnEnter(AppState::InGame), setup);
     app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
+
+    app.add_plugins(stat::plugin::<Health>);
 }
 
 #[derive(Component)]
@@ -64,9 +61,6 @@ fn setup(
             Agent::default(),
             board::Location::default(),
             board::Footprint::default(),
-            Health::default(),
-            modifier::Flat(Health(200.0)),
-            // Health::pool(100.0),
             MoveTo,
         ))
         .id();
@@ -81,7 +75,6 @@ fn setup(
                 transform: Transform::from_xyz(4.0, 0.5, 4.0),
                 ..default()
             },
-            // Health::pool(100.0),
             Agent::default(),
             board::Location::default(),
             board::Footprint::default(),
@@ -99,8 +92,7 @@ fn setup(
         Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),
-        // modifier::flat::<Health>(100.0),
-        // modifier::Modifies::Single(test_id),
+        Health::new(200.0),
     ));
 }
 
@@ -135,5 +127,15 @@ fn test_target(
     target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }
 
-#[derive(Stat, Component, Reflect)]
+#[derive(Stat, Component, Reflect, Copy, Clone)]
 struct Health(f32);
+
+// impl Stat for Health {
+//     fn new(value: f32) -> Self {
+//         Self(value)
+//     }
+
+//     fn value(&self) -> f32 {
+//         self.0
+//     }
+// }
