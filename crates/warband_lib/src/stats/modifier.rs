@@ -280,6 +280,7 @@ pub(super) fn compute<S: Stat + Component>(
 
         // ((base + flat) * additive) * multiplicative
         let computed = multiplicative.compute(additive.compute(flat.compute(BASE)));
+        let computed = S::clamp(S::round(computed));
 
         if stat.value() != computed {
             *stat = S::new(computed);

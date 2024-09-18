@@ -127,8 +127,21 @@ fn test_target(
     target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }
 
-#[derive(Stat, Component, Reflect, Copy, Clone)]
-struct Health(f32);
+#[derive(Stat, Default, Component, Reflect, Copy, Clone)]
+#[clamp(clamp_0_100)]
+#[round(round_i32)]
+struct Health {
+    #[stat(value)]
+    value: f32,
+}
+
+fn clamp_0_100(value: f32) -> f32 {
+    value.clamp(0.0, 100.0)
+}
+
+fn round_i32(value: f32) -> f32 {
+    value.round()
+}
 
 // impl Stat for Health {
 //     fn new(value: f32) -> Self {

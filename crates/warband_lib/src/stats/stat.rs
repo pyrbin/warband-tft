@@ -57,12 +57,14 @@ pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'sta
         modifier::Mult::from(self)
     }
 
-    fn clamp(&mut self) -> Self {
-        *self
+    /// Clamps the value of the [Stat].
+    fn clamp(value: f32) -> f32 {
+        value
     }
 
-    fn round(&mut self) -> Self {
-        *self
+    /// Rounds the value of the [Stat].
+    fn round(value: f32) -> f32 {
+        value
     }
 }
 
