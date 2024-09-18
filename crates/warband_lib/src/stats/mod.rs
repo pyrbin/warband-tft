@@ -3,6 +3,7 @@ use modifier::Modifies;
 use crate::prelude::*;
 
 pub mod modifier;
+pub mod pool;
 pub mod stat;
 
 /// # Examples
@@ -27,6 +28,7 @@ pub mod stat;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum StatSystems {
     Dirty,
+    Reset,
     Accumulate,
     Compute,
     Cleanup,
@@ -39,6 +41,7 @@ pub(super) fn plugin(app: &mut App) {
         PostUpdate,
         (
             StatSystems::Dirty,
+            StatSystems::Reset,
             StatSystems::Accumulate,
             StatSystems::Compute,
             StatSystems::Cleanup,

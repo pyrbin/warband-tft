@@ -1,30 +1,20 @@
-use std::{
-    marker::PhantomData,
-    ops::{AddAssign, MulAssign, SubAssign},
-};
+use std::ops::{AddAssign, MulAssign, SubAssign};
 
-use super::stat::{Stat, StatBundle};
 use crate::prelude::*;
 
 #[derive(Bundle, Default)]
 pub struct PoolBundle<S: Stat + Component> {
     current: Current<S>,
-    stat: StatBundle<S>,
+    stat: S,
 }
 
 impl<S: Stat + Component> PoolBundle<S> {
     #[allow(unused)]
     pub fn new(value: f32) -> Self {
         Self {
-            stat: StatBundle::<S>::new(value),
+            stat: S::new(value),
             current: Current::<S>::new(value),
         }
-    }
-
-    #[allow(unused)]
-    pub fn with_current(mut self, value: f32) -> Self {
-        self.current.0 = value;
-        self
     }
 }
 
@@ -135,15 +125,15 @@ impl<S: Stat + Component> std::ops::Deref for Current<S> {
 #[derive(Component, Debug, Clone, Copy, Reflect, From)]
 #[reflect(Component)]
 pub(super) struct DirtyCurrent<S: Stat + Component> {
-    pub(super) progress: f32,
+    pub(super) last_percentage: f32,
     #[reflect(ignore)]
     _marker: PhantomData<S>,
 }
 
 impl<S: Stat + Component> DirtyCurrent<S> {
-    pub(super) fn new(progress: f32) -> Self {
+    pub(super) fn new(percentage: f32) -> Self {
         Self {
-            progress,
+            last_percentage: percentage,
             _marker: PhantomData,
         }
     }
@@ -152,7 +142,7 @@ impl<S: Stat + Component> DirtyCurrent<S> {
 impl<S: Stat + Component> Default for DirtyCurrent<S> {
     fn default() -> Self {
         Self {
-            progress: 0.0,
+            last_percentage: 0.0,
             _marker: PhantomData,
         }
     }
@@ -168,7 +158,7 @@ pub(super) fn clamp<S: Stat + Component>(
     }
 }
 
-pub(super) fn dirty_current<S: Stat + Component>(
+pub(super) fn current<S: Stat + Component>(
     mut commands: Commands,
     mut stats: Query<(Entity, &S, &Current<S>), With<Dirty<S>>>,
 ) {
@@ -178,14 +168,14 @@ pub(super) fn dirty_current<S: Stat + Component>(
     }
 }
 
-pub(super) fn dirty_cleanup<S: Stat>(
+pub(super) fn cleanup<S: Stat>(
     mut commands: Commands,
     mut stats: Query<(Entity, Pool<S>, &DirtyCurrent<S>)>,
 ) where
     S: Component,
 {
     for (entity, mut pool, dirty_current) in &mut stats {
-        let p = dirty_current.progress;
+        let p = dirty_current.last_percentage;
         pool.current.0 = p * pool.total();
         commands.entity(entity).remove::<DirtyCurrent<S>>();
     }

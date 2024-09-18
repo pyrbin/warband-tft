@@ -92,7 +92,7 @@ fn setup(
         Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),
-        Health::new(200.0),
+        Health::pool(100.0),
     ));
 }
 
@@ -142,13 +142,3 @@ fn clamp_0_100(value: f32) -> f32 {
 fn round_i32(value: f32) -> f32 {
     value.round()
 }
-
-// impl Stat for Health {
-//     fn new(value: f32) -> Self {
-//         Self(value)
-//     }
-
-//     fn value(&self) -> f32 {
-//         self.0
-//     }
-// }

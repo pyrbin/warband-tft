@@ -1,5 +1,5 @@
 use super::{modifier, StatSystems};
-use crate::prelude::*;
+use crate::{prelude::*, stats::pool};
 
 pub(crate) fn plugin<S: Stat>(app: &mut App)
 where
@@ -8,6 +8,8 @@ where
     app_register_types!(
         S,
         Dirty<S>,
+        pool::Current<S>,
+        pool::DirtyCurrent<S>,
         modifier::Flat<S>,
         modifier::Additive<S>,
         modifier::Mult<S>
@@ -29,10 +31,20 @@ where
 
     app.add_systems(
         PostUpdate,
+        (pool::current::<S>, pool::clamp::<S>)
+            .chain()
+            .in_set(StatSystems::Reset),
+    );
+
+    app.add_systems(
+        PostUpdate,
         modifier::compute::<S>.in_set(StatSystems::Compute),
     );
 
-    app.add_systems(PostUpdate, dirty_remove::<S>.in_set(StatSystems::Cleanup));
+    app.add_systems(
+        PostUpdate,
+        (dirty_cleanup::<S>, pool::cleanup::<S>).in_set(StatSystems::Cleanup),
+    );
 }
 
 pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'static {
@@ -42,19 +54,27 @@ pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'sta
     /// Returns the value of the [Stat].
     fn value(&self) -> f32;
 
-    /// Returns a [modifier::Flat] modifier with the given value of [Stat]
-    fn flat(self) -> modifier::Flat<Self> {
-        modifier::Flat::from(self)
+    /// Returns a [pool::PoolBundle<Self>] with the given value of [Stat].
+    fn pool(value: f32) -> pool::PoolBundle<Self>
+    where
+        Self: Component,
+    {
+        pool::PoolBundle::new(value)
     }
 
-    /// Returns a [modifier::Additive] modifier with the given value of [Stat]
-    fn additive(self) -> modifier::Additive<Self> {
-        modifier::Additive::from(self)
+    /// Returns a [modifier::Flat] modifier of [Stat]
+    fn flat(value: f32) -> modifier::Flat<Self> {
+        modifier::Flat::from(Self::new(value))
+    }
+
+    /// Returns a [modifier::Additive] modifier  of [Stat]
+    fn additive(value: f32) -> modifier::Additive<Self> {
+        modifier::Additive::from(Self::new(value))
     }
 
     /// Returns a [modifier::Mult] modifier with the given value of [Stat]
-    fn mult(self) -> modifier::Mult<Self> {
-        modifier::Mult::from(self)
+    fn mult(value: f32) -> modifier::Mult<Self> {
+        modifier::Mult::from(Self::new(value))
     }
 
     /// Clamps the value of the [Stat].
@@ -96,7 +116,7 @@ fn on_remove<S: Stat + Component>(
     }
 }
 
-fn dirty_remove<S: Stat + Component>(
+fn dirty_cleanup<S: Stat + Component>(
     with_dirty: Query<Entity, With<Dirty<S>>>,
     mut commands: Commands,
 ) {

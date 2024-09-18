@@ -19,7 +19,7 @@ pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let value_field = extract_stat_value_field(&ast);
+    let value_field = extract_stat_value_field(ast);
     let (clamp_fn, round_fn) = extract_clamp_and_round_functions(ast);
 
     let gen = quote! {
