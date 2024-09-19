@@ -6,7 +6,7 @@ pub mod modifier;
 pub mod pool;
 pub mod stat;
 
-/// # Examples
+/// # Example
 /// ```
 /// #[derive(Stat, Default, Component, Reflect, Copy, Clone)]
 /// #[clamp(clamp_0_100)]

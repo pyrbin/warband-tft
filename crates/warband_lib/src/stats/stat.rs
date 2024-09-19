@@ -47,35 +47,19 @@ where
     );
 }
 
+pub(crate) fn pool<S: Stat>(stat: S) -> pool::PoolBundle<S>
+where
+    S: Component,
+{
+    pool::PoolBundle::new(stat.value())
+}
+
 pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'static {
     /// Creates a new [Stat] with the given value.
     fn new(value: f32) -> Self;
 
     /// Returns the value of the [Stat].
     fn value(&self) -> f32;
-
-    /// Returns a [pool::PoolBundle<Self>] with the given value of [Stat].
-    fn pool(value: f32) -> pool::PoolBundle<Self>
-    where
-        Self: Component,
-    {
-        pool::PoolBundle::new(value)
-    }
-
-    /// Returns a [modifier::Flat] modifier of [Stat]
-    fn flat(value: f32) -> modifier::Flat<Self> {
-        modifier::Flat::from(Self::new(value))
-    }
-
-    /// Returns a [modifier::Additive] modifier  of [Stat]
-    fn additive(value: f32) -> modifier::Additive<Self> {
-        modifier::Additive::from(Self::new(value))
-    }
-
-    /// Returns a [modifier::Mult] modifier with the given value of [Stat]
-    fn mult(value: f32) -> modifier::Mult<Self> {
-        modifier::Mult::from(Self::new(value))
-    }
 
     /// Clamps the value of the [Stat].
     fn clamp(value: f32) -> f32 {

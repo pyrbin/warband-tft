@@ -43,10 +43,15 @@ impl Vec2Ext for Vec2 {
 }
 
 pub(crate) trait F32Ext: Copy {
+    fn is_approx_zero(self) -> bool;
     fn squared(self) -> f32;
 }
 
 impl F32Ext for f32 {
+    #[inline]
+    fn is_approx_zero(self) -> bool {
+        f32::EPSILON > self.abs()
+    }
     #[inline]
     fn squared(self) -> f32 {
         self * self

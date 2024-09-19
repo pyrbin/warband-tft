@@ -22,6 +22,3 @@ rustflags = [
     "-Zshare-generics=y", # (Nightly) Make the current crate share its generic instantiations.
     "-Zthreads=8", # (Nightly) Use improved multithreading with the recommended amount of threads.
 ]
-
-[profile.dev]
-debug = 1 # Following improves compile times, but reduces the amount of debug info to 'line number tables only'. In most cases the gains are negligible.

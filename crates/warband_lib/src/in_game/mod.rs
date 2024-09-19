@@ -1,6 +1,10 @@
 use crate::{
     board,
-    navigation::{self, agent::Agent},
+    navigation::{
+        agent::{Agent, TargetReachedCondition},
+        path,
+    },
+    physics::motor::{CharacterMotorBundle, Movement},
     player::camera::MainCamera,
     prelude::*,
     stats::stat,
@@ -49,7 +53,7 @@ fn setup(
         Collider::cuboid(100.0, 0.1, 100.0),
     ));
 
-    let id = commands
+    let target_id = commands
         .spawn((
             Name::unit("Target"),
             PbrBundle {
@@ -58,29 +62,34 @@ fn setup(
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
                 ..default()
             },
-            Agent::default(),
             board::Location::default(),
             board::Footprint::default(),
+            Health(50.0),
             MoveTo,
         ))
         .id();
 
     // unit
-    let test_id = commands
-        .spawn((
-            Name::unit("Test"),
+
+    for i in 0..10 {
+        commands.spawn((
+            Name::unit("Unit"),
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
                 material: materials.add(Color::srgb_u8(2, 144, 255)),
-                transform: Transform::from_xyz(4.0, 0.5, 4.0),
+                transform: Transform::from_xyz(i as f32, 0.5, i as f32),
                 ..default()
             },
-            Agent::default(),
             board::Location::default(),
             board::Footprint::default(),
-            navigation::path::Target::Entity(id),
-        ))
-        .id();
+            Agent::default(),
+            CharacterMotorBundle::new(0.5, 0.5),
+            path::Target::Entity(target_id),
+            TargetReachedCondition::Hexagonal(1),
+            Movement(120.0),
+            Health(200.0),
+        ));
+    }
 
     commands.spawn((
         Name::unit("obstacle"),
@@ -92,7 +101,6 @@ fn setup(
         Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),
-        Health::pool(100.0),
     ));
 }
 
@@ -127,18 +135,6 @@ fn test_target(
     target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }
 
-#[derive(Stat, Default, Component, Reflect, Copy, Clone)]
-#[clamp(clamp_0_100)]
-#[round(round_i32)]
-struct Health {
-    #[stat(value)]
-    value: f32,
-}
-
-fn clamp_0_100(value: f32) -> f32 {
-    value.clamp(0.0, 100.0)
-}
-
-fn round_i32(value: f32) -> f32 {
-    value.round()
-}
+#[derive(Stat, Component, Default, Reflect, Copy, Clone)]
+#[clamp(min = 0)]
+struct Health(pub f32);

@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
-use syn::{DeriveInput, Fields, Path};
+use syn::{DeriveInput, Expr, ExprLit, Fields, Lit, Path};
 
 pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
     let crate_ident = match crate_name(CRATE_IDENT)
@@ -93,27 +93,84 @@ fn extract_stat_value_field(ast: &DeriveInput) -> proc_macro2::TokenStream {
 fn extract_clamp_and_round_functions(
     ast: &DeriveInput,
 ) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let mut clamp_fn: Option<Ident> = None;
+    let mut clamp_fn: Option<proc_macro2::TokenStream> = None;
     let mut round_fn: Option<Ident> = None;
 
     for attr in &ast.attrs {
         if attr.path().is_ident("clamp") {
-            clamp_fn = extract_function_from_attr(attr);
+            clamp_fn = Some(extract_clamp(attr));
         } else if attr.path().is_ident("round") {
             round_fn = extract_function_from_attr(attr);
         }
     }
 
-    // Default to no-op if no functions are provided
-    let clamp_fn = clamp_fn
-        .map(|ident| quote!(#ident))
-        .unwrap_or_else(|| quote!());
-
+    let clamp_fn = clamp_fn.unwrap_or_else(|| quote!());
     let round_fn = round_fn
         .map(|ident| quote!(#ident))
         .unwrap_or_else(|| quote!());
 
     (clamp_fn, round_fn)
+}
+
+fn extract_clamp(attr: &syn::Attribute) -> proc_macro2::TokenStream {
+    let mut min_val: Option<f32> = None;
+    let mut max_val: Option<f32> = None;
+    let mut clamp_fn: Option<Ident> = None;
+
+    let meta_list = attr
+        .parse_args_with(syn::punctuated::Punctuated::<Expr, syn::Token![,]>::parse_terminated)
+        .expect("Failed to parse attribute arguments");
+
+    for expr in meta_list {
+        if let Expr::Assign(assign) = expr {
+            if let Expr::Path(path) = *assign.left {
+                if path.path.is_ident("min") {
+                    if let Expr::Lit(ExprLit {
+                        lit: Lit::Float(flt),
+                        ..
+                    }) = *assign.right
+                    {
+                        min_val = Some(flt.base10_parse().expect("Invalid float for `min`"));
+                    }
+                } else if path.path.is_ident("max") {
+                    if let Expr::Lit(ExprLit {
+                        lit: Lit::Float(flt),
+                        ..
+                    }) = *assign.right
+                    {
+                        max_val = Some(flt.base10_parse().expect("Invalid float for `max`"));
+                    }
+                }
+            }
+        } else if let Expr::Path(path) = expr {
+            if let Some(ident) = path.path.get_ident() {
+                clamp_fn = Some(ident.clone());
+            }
+        }
+    }
+
+    match (clamp_fn, min_val, max_val) {
+        (Some(func), _, _) => quote!(#func),
+        (None, Some(min), Some(max)) => quote!(
+            fn clamp_fn(value: f32) -> f32 {
+                value.clamp(#min, #max)
+            }
+            clamp_fn
+        ),
+        (None, Some(min), None) => quote!(
+            fn clamp_fn(value: f32) -> f32 {
+                value.max(#min)
+            }
+            clamp_fn
+        ),
+        (None, None, Some(max)) => quote!(
+            fn clamp_fn(value: f32) -> f32 {
+                value.min(#max)
+            }
+            clamp_fn
+        ),
+        _ => quote!(),
+    }
 }
 
 fn extract_function_from_attr(attr: &syn::Attribute) -> Option<Ident> {

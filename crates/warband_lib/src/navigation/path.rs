@@ -16,7 +16,6 @@ pub enum Target {
     Cell(Hex),
 }
 
-// #FB_TODO: convert to enum to handle Target::None case
 #[derive(Component, Clone, Copy, Default, From, Reflect, PartialEq)]
 #[reflect(Component)]
 pub enum TargetLocation {
@@ -112,7 +111,12 @@ pub(super) fn compute(
         AsyncComputeTaskPool::get()
             .spawn(async move {
                 let path = a_star(start, end, |_, b| {
-                    if occupied.contains_key(&b) { 1 } else { 0 }.into()
+                    if b == start || !occupied.contains_key(&b) {
+                        0
+                    } else {
+                        1
+                    }
+                    .into()
                 });
                 *writer.write().unwrap() = (path, true);
             })
