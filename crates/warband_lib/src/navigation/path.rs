@@ -55,10 +55,16 @@ pub(super) fn target_location(
 
 #[derive(Component, Deref, DerefMut, Reflect, Default)]
 #[reflect(Component)]
-pub struct Path(Vec<Vec2>);
+pub struct Path(Vec<Hex>);
 
 #[derive(Component)]
 pub struct FindingPath(Arc<RwLock<(Option<Vec<Hex>>, bool)>>);
+
+#[derive(Event, Reflect)]
+pub enum PathEvent {
+    Computed,
+    ReachedWaypoint,
+}
 
 pub(super) fn on_changed(
     mut commands: Commands,
@@ -66,7 +72,7 @@ pub(super) fn on_changed(
     footprints: Query<Entity, Changed<Footprint>>,
     obstacles: Res<board::Occupied>,
 ) {
-    if !obstacles.is_changed() || footprints.is_empty() {
+    if !obstacles.is_changed() && footprints.is_empty() {
         return;
     }
 
@@ -129,11 +135,7 @@ pub(super) fn compute(
     }
 }
 
-pub(super) fn poll(
-    mut commands: Commands,
-    computing: Query<(Entity, &FindingPath)>,
-    board: Res<board::Board>,
-) {
+pub(super) fn poll(mut commands: Commands, computing: Query<(Entity, &FindingPath)>) {
     for (entity, task) in &computing {
         let mut task = task.0.write().unwrap();
         if task.1 {
@@ -145,10 +147,11 @@ pub(super) fn poll(
                             .copied()
                             // #FB_NOTE: skip the first hex, which is the start hex
                             .skip(1)
-                            .map(|h| board.layout.hex_to_world_pos(h))
                             .collect(),
                     ))
                     .remove::<FindingPath>();
+
+                commands.trigger_targets(PathEvent::Computed, entity);
             } else {
                 info!("no path found");
             }
@@ -157,16 +160,28 @@ pub(super) fn poll(
 }
 
 #[cfg(feature = "dev")]
-pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<(&Transform, &Path)>) {
+pub(crate) fn gizmos(
+    mut gizmos: Gizmos,
+    entities: Query<(&Transform, &Path)>,
+    board: Res<board::Board>,
+) {
     use bevy::color::palettes::css::PURPLE;
+
+    let to_world = |hex: Hex| board.layout.hex_to_world_pos(hex);
+
     for (transform, path) in &entities {
         if path.len() <= 0 {
             continue;
         }
-        gizmos.line(transform.translation.horizontal(), path[0].x0y(), PURPLE);
+
+        gizmos.line(
+            transform.translation.horizontal(),
+            to_world(path[0]).x0y(),
+            PURPLE,
+        );
         for i in 0..path.len() - 1 {
-            let start = path[i];
-            let end = path[i + 1];
+            let start = to_world(path[i]);
+            let end = to_world(path[i + 1]);
             gizmos.line(start.x0y(), end.x0y(), PURPLE);
         }
     }

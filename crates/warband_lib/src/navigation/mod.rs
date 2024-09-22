@@ -1,5 +1,3 @@
-use agent::{DesiredDirection, TargetReachedCondition};
-
 use crate::{prelude::*, AppState};
 
 pub mod agent;
@@ -23,8 +21,7 @@ pub(super) fn plugin(app: &mut App) {
     app_register_types!(
         agent::Agent,
         agent::TargetReached,
-        agent::TargetReachedCondition,
-        agent::DesiredDirection,
+        agent::ArrivalRange,
         path::Path,
         path::Target,
         path::TargetLocation
@@ -66,20 +63,12 @@ pub(super) fn plugin(app: &mut App) {
         ),
     );
 
-    app.observe(agent::snap);
     app.add_systems(
         PostUpdate,
         (
-            (
-                required_component::<agent::Agent, TargetReachedCondition>,
-                required_component::<agent::Agent, DesiredDirection>,
-                agent::reset_desired_direction,
-            )
-                .in_set(AgentSystems::Maintain),
-            (agent::target_reached).in_set(AgentSystems::TargetReached),
-            (agent::navigate, agent::moving)
-                .chain()
-                .in_set(AgentSystems::Movement),
+            required_component::<agent::Agent, agent::ArrivalRange>.in_set(AgentSystems::Maintain),
+            agent::waypoint.in_set(AgentSystems::TargetReached),
+            agent::moving.in_set(AgentSystems::Movement),
         ),
     );
 }

@@ -1,6 +1,6 @@
 use hexx::Hex;
 
-use crate::prelude::*;
+use crate::{navigation::agent::Waypoint, prelude::*};
 
 use super::Board;
 
@@ -15,7 +15,10 @@ pub enum Location {
 pub(super) fn location(
     mut transforms: Query<
         (&mut Location, &GlobalTransform),
-        Or<(Changed<GlobalTransform>, Added<Location>)>,
+        (
+            Or<(Changed<GlobalTransform>, Added<Location>)>,
+            Without<Waypoint>,
+        ),
     >,
     board: Res<Board>,
 ) {

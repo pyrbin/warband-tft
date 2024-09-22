@@ -1,7 +1,7 @@
 use crate::{
     board,
     navigation::{
-        agent::{Agent, TargetReachedCondition},
+        agent::{Agent, ArrivalRange},
         path,
     },
     physics::motor::{CharacterMotorBundle, Movement},
@@ -59,7 +59,7 @@ fn setup(
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
                 material: materials.add(Color::srgb_u8(124, 144, 255).with_alpha(0.1)),
-                transform: Transform::from_xyz(0.0, 0.5, 0.0),
+                transform: Transform::from_xyz(5.0, 0.5, 5.0),
                 ..default()
             },
             board::Location::default(),
@@ -71,7 +71,7 @@ fn setup(
 
     // unit
 
-    for i in 0..10 {
+    for i in 0..3 {
         commands.spawn((
             Name::unit("Unit"),
             PbrBundle {
@@ -85,8 +85,8 @@ fn setup(
             Agent::default(),
             CharacterMotorBundle::new(0.5, 0.5),
             path::Target::Entity(target_id),
-            TargetReachedCondition::Hexagonal(1),
-            Movement(120.0),
+            ArrivalRange(1),
+            Movement(250.0),
             Health(200.0),
         ));
     }
@@ -97,7 +97,7 @@ fn setup(
             transform: Transform::from_xyz(-2.0, 2.0, -2.0),
             ..default()
         },
-        RigidBody::Dynamic,
+        RigidBody::Static,
         Collider::cuboid(4.0, 4.0, 4.0),
         board::Location::default(),
         board::Footprint::default(),

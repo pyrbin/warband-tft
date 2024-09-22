@@ -70,7 +70,8 @@ pub struct CharacterMotor;
 
 #[derive(Event, Reflect)]
 pub enum MovementAction {
-    Move(Dir2),
+    Toward(Vec3),
+    Dir(Dir2),
     Jump,
 }
 
@@ -134,17 +135,27 @@ fn gravity(
 fn movement(
     trigger: Trigger<MovementAction>,
     time: Res<Time>,
-    mut motors: Query<(&Movement, &mut LinearVelocity, Has<Grounded>)>,
+    mut motors: Query<(&Movement, &Transform, &mut LinearVelocity, Has<Grounded>)>,
 ) {
     let delta_time = time.delta_seconds();
     let entity = trigger.entity();
 
-    let (movement, mut linear_velocity, grounded) = or_return!(motors.get_mut(entity));
-
+    let (movement, transform, mut linear_velocity, grounded) = or_return!(motors.get_mut(entity));
+    let move_speed = movement.value() * delta_time;
     match trigger.event() {
-        MovementAction::Move(dir) => {
-            linear_velocity.x += dir.x * movement.value() * delta_time;
-            linear_velocity.z += dir.y * movement.value() * delta_time;
+        MovementAction::Toward(translation) => {
+            const ARRIVE_SPEED_MOD: f32 = 0.75;
+            let target = move_towards(transform.translation, *translation, move_speed);
+            let velocity = (target - transform.translation)
+                .horizontal()
+                .clamp_length_min(move_speed * ARRIVE_SPEED_MOD);
+            linear_velocity.x += velocity.x;
+            linear_velocity.z += velocity.z;
+        }
+
+        MovementAction::Dir(dir) => {
+            linear_velocity.x += dir.x * move_speed;
+            linear_velocity.z += dir.y * move_speed;
         }
         MovementAction::Jump => {
             if grounded {
@@ -152,6 +163,16 @@ fn movement(
             }
         }
     }
+}
+
+#[inline]
+fn move_towards(current: Vec3, target: Vec3, max_distance_delta: f32) -> Vec3 {
+    let to_vector = target - current;
+    let sqdist = to_vector.length_squared();
+    if sqdist == 0.0 || sqdist <= max_distance_delta * max_distance_delta {
+        return target;
+    }
+    current + to_vector.normalize() * max_distance_delta
 }
 
 fn damping(mut query: Query<(&DampingFactor, &mut LinearVelocity)>) {

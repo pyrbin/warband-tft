@@ -1,0 +1,7 @@
+- Just use an Arrival Range()
+(   x    )
+- Fix recalc of Path every location fix
+- Dont care about hex end placement, we just care about arrival range
+- Dodge2d? aka Avoidance or maybe just use a simple boids
+- Move To waypoint
+- Dont updte Location on Agent if Moving

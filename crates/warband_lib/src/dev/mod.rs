@@ -41,6 +41,7 @@ pub(super) fn plugin(app: &mut App) {
             crate::board::gizmos,
             crate::board::footprint::gizmos,
             crate::navigation::path::gizmos,
+            crate::navigation::agent::gizmos,
         )
             .chain(),
     );
