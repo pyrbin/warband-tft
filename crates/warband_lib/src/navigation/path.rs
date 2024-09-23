@@ -2,13 +2,14 @@ use bevy::tasks::AsyncComputeTaskPool;
 use hexx::{algorithms::a_star, Hex};
 
 use crate::{
-    board::{self, Footprint, Location},
+    board::{self, occupied::Occupant, Location},
     prelude::*,
 };
 use std::sync::{Arc, RwLock};
 
+use super::agent::Arrived;
+
 #[derive(Component, Clone, Copy, Default, PartialEq, Eq, Hash, Debug, From, Reflect)]
-#[reflect(Component)]
 pub enum Target {
     #[default]
     None,
@@ -17,11 +18,10 @@ pub enum Target {
 }
 
 #[derive(Component, Clone, Copy, Default, From, Reflect, PartialEq)]
-#[reflect(Component)]
 pub enum TargetLocation {
     #[default]
     None,
-    Value(Hex),
+    Valid(Hex),
 }
 
 pub(super) fn target_location(
@@ -32,11 +32,11 @@ pub(super) fn target_location(
         .par_iter_mut()
         .for_each(|(target, mut target_location)| {
             let location: TargetLocation = match target {
-                Target::Cell(hex) => TargetLocation::Value(*hex),
+                Target::Cell(hex) => TargetLocation::Valid(*hex),
                 Target::Entity(entity) => {
                     if let Ok(location) = with_location.get(*entity) {
                         if let Location::Valid(hex) = *location {
-                            TargetLocation::Value(hex)
+                            TargetLocation::Valid(hex)
                         } else {
                             TargetLocation::None
                         }
@@ -54,25 +54,17 @@ pub(super) fn target_location(
 }
 
 #[derive(Component, Deref, DerefMut, Reflect, Default)]
-#[reflect(Component)]
 pub struct Path(Vec<Hex>);
 
 #[derive(Component)]
 pub struct FindingPath(Arc<RwLock<(Option<Vec<Hex>>, bool)>>);
 
-#[derive(Event, Reflect)]
-pub enum PathEvent {
-    Computed,
-    ReachedWaypoint,
-}
-
 pub(super) fn on_changed(
     mut commands: Commands,
-    with_target: Query<Entity, With<Target>>,
-    footprints: Query<Entity, Changed<Footprint>>,
+    with_target: Query<Entity, (With<Target>, Without<Arrived>)>,
     obstacles: Res<board::Occupied>,
 ) {
-    if !obstacles.is_changed() && footprints.is_empty() {
+    if !obstacles.is_changed() {
         return;
     }
 
@@ -94,13 +86,17 @@ pub(super) fn compute(
     mut commands: Commands,
     with_target: Query<(Entity, &TargetLocation, &Location), With<Dirty<Path>>>,
     occupied: Res<board::Occupied>,
+    board: Res<board::Board>,
 ) {
+    const DEFAULT_COST: u32 = 0;
+    const DEFAULT_OCCUPANT_COST: u32 = 1;
+
     for (entity, target, location) in &with_target {
         let Location::Valid(start) = *location else {
             return;
         };
 
-        let TargetLocation::Value(end) = *target else {
+        let TargetLocation::Valid(end) = *target else {
             commands.entity(entity).remove::<Path>();
             continue;
         };
@@ -113,18 +109,65 @@ pub(super) fn compute(
         let finding = FindingPath(Arc::new(RwLock::new((None, false))));
         let writer = finding.0.clone();
         let occupied = occupied.clone();
+        let bounds = board.bounds.clone();
 
         AsyncComputeTaskPool::get()
             .spawn(async move {
-                let path = a_star(start, end, |_, b| {
-                    if b == start || !occupied.contains_key(&b) {
-                        0
-                    } else {
-                        1
+                // perf: can be improved, might be good enough tho
+                let shortest_path = |ignore_occupants: bool| {
+                    a_star(start, end, |_, b| {
+                        if !bounds.is_in_bounds(b) {
+                            None
+                        } else if b == end {
+                            Some(DEFAULT_COST)
+                        } else if occupied.contains_key(&b) {
+                            if let Some(occupants) = occupied.get(&b)
+                                && (occupants.contains(&Occupant::Agent(entity))
+                                    && occupants.len() == 1)
+                            {
+                                return Some(DEFAULT_COST);
+                            }
+
+                            if ignore_occupants
+                                && let Some(occupants) = occupied.get(&b)
+                                && !occupants.iter().any(|o| matches!(o, Occupant::Obstacle(_)))
+                            {
+                                Some(DEFAULT_OCCUPANT_COST)
+                            } else {
+                                None
+                            }
+                        } else {
+                            Some(DEFAULT_COST)
+                        }
+                    })
+                };
+
+                // 1. find path around occupants.
+                // 2. if no path; find path ignoring agent occupants, to get close to the target.
+                // 3. determine if new path ignoring occupants is closer than current position
+                let mut result_path = shortest_path(false);
+
+                if result_path.is_none() {
+                    result_path = shortest_path(true);
+                    if let Some(path) = result_path.clone()
+                        && let Some((p, _)) = path.iter().rev().copied().find_position(|h| {
+                            *h != start && *h != end && !occupied.contains_key(h)
+                        })
+                    {
+                        let index = path.len() - p;
+                        let distance = start.distance_to(end);
+                        let new_distance = path[index].distance_to(end);
+
+                        // TODO: fine tune this
+                        if distance < new_distance
+                            || (path.len() / 3) as i32 > distance - new_distance
+                        {
+                            result_path = None;
+                        }
                     }
-                    .into()
-                });
-                *writer.write().unwrap() = (path, true);
+                }
+
+                *writer.write().unwrap() = (result_path, true);
             })
             .detach();
 
@@ -140,20 +183,16 @@ pub(super) fn poll(mut commands: Commands, computing: Query<(Entity, &FindingPat
         let mut task = task.0.write().unwrap();
         if task.1 {
             if let Some(path) = task.0.take() {
+                let skip = if path.len() < 2 { 0 } else { 1 };
                 commands
                     .entity(entity)
                     .insert(Path(
                         path.iter()
                             .copied()
-                            // #FB_NOTE: skip the first hex, which is the start hex
-                            .skip(1)
+                            .skip(skip) // skip start hex
                             .collect(),
                     ))
                     .remove::<FindingPath>();
-
-                commands.trigger_targets(PathEvent::Computed, entity);
-            } else {
-                info!("no path found");
             }
         }
     }
@@ -165,7 +204,7 @@ pub(crate) fn gizmos(
     entities: Query<(&Transform, &Path)>,
     board: Res<board::Board>,
 ) {
-    use bevy::color::palettes::css::PURPLE;
+    use bevy::color::palettes::css::LIGHT_PINK;
 
     let to_world = |hex: Hex| board.layout.hex_to_world_pos(hex);
 
@@ -174,15 +213,13 @@ pub(crate) fn gizmos(
             continue;
         }
 
-        gizmos.line(
-            transform.translation.horizontal(),
-            to_world(path[0]).x0y(),
-            PURPLE,
-        );
-        for i in 0..path.len() - 1 {
-            let start = to_world(path[i]);
-            let end = to_world(path[i + 1]);
-            gizmos.line(start.x0y(), end.x0y(), PURPLE);
+        let mut segments = vec![transform.translation.horizontal()];
+        segments.extend(path.iter().copied().map(|hex| to_world(hex).x0y()));
+
+        for i in 1..segments.len() - 1 {
+            gizmos.circle(segments[i], Dir3::Y, 0.1, LIGHT_PINK);
         }
+
+        gizmos.linestrip(segments, LIGHT_PINK);
     }
 }

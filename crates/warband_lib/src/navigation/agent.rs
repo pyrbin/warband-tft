@@ -1,12 +1,12 @@
 use hexx::Hex;
 
 use crate::{
-    board::{Board, Location},
+    board::{occupied::Occupant, Board, Location, Occupied},
     physics::motor::{CharacterMotor, MovementAction},
     prelude::*,
 };
 
-use super::path::{Path, TargetLocation};
+use super::path::{Path, Target, TargetLocation};
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -21,11 +21,6 @@ impl Default for Agent {
 }
 
 impl Agent {
-    pub fn with_size(size: u8) -> Self {
-        assert!(size > 0);
-        Self { size }
-    }
-
     pub fn size(&self) -> u8 {
         self.size
     }
@@ -33,74 +28,118 @@ impl Agent {
 
 #[derive(Component, Default, Reflect)]
 #[component(storage = "SparseSet")]
-pub struct TargetReached;
+pub struct Arrived;
 
 #[derive(Component, Default, Debug, Clone, Deref, DerefMut, Copy, Reflect)]
-pub struct ArrivalRange(pub i32);
+pub struct ArrivalThreshold(pub u32);
+
+impl ArrivalThreshold {
+    pub fn has_arrived(&self, distance: u32) -> bool {
+        distance <= self.0
+    }
+}
 
 #[derive(Component, Default, Debug, Clone, Copy, Reflect)]
 pub struct Waypoint(pub Hex);
 
-// TODO:
-// - need to allow updating path while moving to waypoint
-// - need to handle collision between objects & agents gracefully
-// - need to handle if path is obstructed by an obtacle update
+#[derive(Event, Debug, Clone, Copy, Reflect)]
+pub enum PathingEvent {
+    Arrived,
+    NeedsUpdate,
+}
 
-pub(super) fn waypoint(
+pub(super) fn pathing(
     mut agents: Query<
         (
             Entity,
             &mut Path,
             &mut Location,
             &TargetLocation,
-            &ArrivalRange,
+            &ArrivalThreshold,
         ),
-        Without<Waypoint>,
+        (
+            Without<Waypoint>,
+            With<Target>,
+            With<Agent>,
+            Without<Arrived>,
+        ),
     >,
+    occupied: Res<Occupied>,
     mut commands: Commands,
 ) {
-    for (entity, mut path, mut location, target_location, arrival_range) in &mut agents {
+    for (entity, mut path, mut location, target_location, arrival) in &mut agents {
         if path.is_empty() {
-            commands
-                .entity(entity)
-                .remove::<Path>()
-                .remove::<Waypoint>()
-                .insert(TargetReached);
+            commands.trigger_targets(PathingEvent::Arrived, entity);
             continue;
         }
 
-        let TargetLocation::Value(target_location) = target_location else {
+        let TargetLocation::Valid(target_location) = target_location else {
             continue;
         };
 
         let distance = if let Location::Valid(location) = *location {
-            location.distance_to(*target_location)
+            location.unsigned_distance_to(*target_location)
         } else {
-            i32::MAX
+            u32::MAX
         };
 
-        if distance <= **arrival_range {
-            commands
-                .entity(entity)
-                .remove::<Path>()
-                .remove::<Waypoint>()
-                .insert(TargetReached);
+        if arrival.has_arrived(distance) {
+            commands.trigger_targets(PathingEvent::Arrived, entity);
             continue;
         }
 
         let next_waypoint = path[0];
         path.remove(0);
 
+        if occupied.contains_key(&next_waypoint) {
+            commands.trigger_targets(PathingEvent::NeedsUpdate, entity);
+            continue;
+        }
+
         *location = Location::Valid(next_waypoint);
-        commands
-            .entity(entity)
-            .insert(Waypoint(next_waypoint))
-            .remove::<TargetReached>();
+
+        occupied
+            .entry(next_waypoint)
+            .or_default()
+            .insert(Occupant::Agent(entity));
+
+        commands.entity(entity).insert(Waypoint(next_waypoint));
+    }
+}
+
+pub(super) fn arrived(
+    mut agents: Query<
+        (Entity, &Location, &TargetLocation, &ArrivalThreshold),
+        (
+            With<Agent>,
+            With<Arrived>,
+            Or<(Changed<TargetLocation>, Changed<Location>)>,
+        ),
+    >,
+    mut commands: Commands,
+) {
+    for (entity, location, target_location, arrival) in &mut agents {
+        let TargetLocation::Valid(target_location) = target_location else {
+            continue;
+        };
+
+        let distance = if let Location::Valid(location) = *location {
+            location.unsigned_distance_to(*target_location)
+        } else {
+            u32::MAX
+        };
+
+        if !arrival.has_arrived(distance) {
+            commands.entity(entity).remove::<Arrived>();
+        }
     }
 }
 
 pub(super) fn moving(
-    mut agents: Query<(Entity, &Waypoint, &GlobalTransform), (With<Agent>, With<CharacterMotor>)>,
+    mut agents: Query<
+        (Entity, &Waypoint, &GlobalTransform),
+        (With<Agent>, With<CharacterMotor>, Without<Arrived>),
+    >,
     mut commands: Commands,
     board: Res<Board>,
 ) {
@@ -111,6 +150,7 @@ pub(super) fn moving(
             .horizontal()
             .distance(waypoint);
 
+        // TODO: this might overshoot?
         const DISTANCE_MARGIN: f32 = 0.1;
         if distance < DISTANCE_MARGIN {
             commands.entity(entity).remove::<Waypoint>();
@@ -121,28 +161,50 @@ pub(super) fn moving(
     }
 }
 
+pub(super) fn on_path_event(trigger: Trigger<PathingEvent>, mut commands: Commands) {
+    let entity = trigger.entity();
+
+    let mut entity_commands = or_return!(commands.get_entity(entity));
+
+    match trigger.event() {
+        PathingEvent::Arrived => {
+            entity_commands
+                .remove::<Path>()
+                .remove::<Waypoint>()
+                .insert(Arrived);
+        }
+        PathingEvent::NeedsUpdate => {
+            entity_commands
+                .remove::<Path>()
+                .remove::<Waypoint>()
+                .remove::<Arrived>()
+                .insert(Dirty::<Path>::default());
+        }
+    }
+}
+
 #[cfg(feature = "dev")]
 pub(crate) fn gizmos(
     mut gizmos: Gizmos,
-    entities: Query<(&GlobalTransform, &Waypoint, &ArrivalRange)>,
+    entities: Query<(&GlobalTransform, &Waypoint, &ArrivalThreshold)>,
     board: Res<Board>,
 ) {
-    use bevy::color::palettes::css::GREEN;
+    use bevy::color::palettes::css::LIGHT_CYAN;
 
     let to_world = |hex: Hex| board.layout.hex_to_world_pos(hex).x0y();
 
     for (global_transform, waypoint, arrival_range) in &entities {
-        let position = global_transform.translation().horizontal();
-        gizmos.circle(to_world(waypoint.0), Dir3::Y, 0.7, GREEN);
+        gizmos.rect(
+            to_world(waypoint.0),
+            Quat::from_rotation_x(PI / 2.),
+            Vec2::ONE,
+            LIGHT_CYAN,
+        );
         gizmos.circle(
             global_transform.translation().horizontal(),
             Dir3::Y,
-            **arrival_range as f32 * 1.44,
-            GREEN,
+            **arrival_range as f32 * crate::board::HEX_SIZE_RATIO,
+            LIGHT_CYAN,
         );
-
-        gizmos.circle(position, Dir3::Y, 0.5, YELLOW);
-        gizmos.line(position, position + 1.0 * Vec3::Y, YELLOW);
-        gizmos.circle(position + 1.0 * Vec3::Y, Dir3::Y, 0.5, YELLOW);
     }
 }

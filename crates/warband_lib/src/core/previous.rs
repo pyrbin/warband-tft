@@ -27,7 +27,7 @@ pub(crate) fn propagate_previous_changed<T: Component + Clone>(
         } else {
             commands
                 .entity(entity)
-                .insert(Previous(current_value.clone()));
+                .try_insert(Previous(current_value.clone()));
         }
     }
 }

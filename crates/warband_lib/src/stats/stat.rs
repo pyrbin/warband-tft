@@ -1,4 +1,7 @@
-use super::{modifier, StatSystems};
+use super::{
+    modifier::{self, Accumulated, Additive, Flat, Mult},
+    StatSystems,
+};
 use crate::{prelude::*, stats::pool};
 
 pub(crate) fn plugin<S: Stat>(app: &mut App)
@@ -92,10 +95,14 @@ fn on_remove<S: Stat + Component>(
     mut commands: Commands,
 ) {
     let entity = trigger.entity();
-    if without_modifies.get(entity).is_ok() {
-        commands
-            .entity(entity)
+    if without_modifies.get(entity).is_ok()
+        && let Some(mut entity_commands) = commands.get_entity(entity)
+    {
+        entity_commands
             .remove::<modifier::Flat<S>>()
+            .remove::<Accumulated<Flat<S>, S>>()
+            .remove::<Accumulated<Additive<S>, S>>()
+            .remove::<Accumulated<Mult<S>, S>>()
             .remove::<Dirty<S>>();
     }
 }

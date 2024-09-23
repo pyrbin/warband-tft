@@ -10,7 +10,7 @@ runner = "wasm-server-runner"
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
 rustflags = [
-    "-Zshare-generics=n", # (Nightly)
+    "-Zshare-generics=off", # (Nightly)
     "-Zthreads=0", # (Nightly) Use improved multithreading with the recommended amount of threads.
 ]
 

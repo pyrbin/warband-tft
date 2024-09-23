@@ -38,3 +38,6 @@ ci:
 
 clean: 
     cargo clean
+
+clean-watch: clean watch
+

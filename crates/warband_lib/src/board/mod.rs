@@ -9,7 +9,10 @@ pub mod occupied;
 
 pub use footprint::Footprint;
 pub use location::Location;
+use occupied::DirtyOccupied;
 pub use occupied::Occupied;
+
+pub const HEX_SIZE_RATIO: f32 = 1.44;
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BoardSystems {
@@ -32,6 +35,7 @@ pub(super) fn plugin(app: &mut App) {
 
     app.init_resource::<Board>()
         .init_resource::<Occupied>()
+        .init_resource::<DirtyOccupied>()
         .insert_resource(
             BoardSettings::builder()
                 .width(10)
@@ -40,6 +44,8 @@ pub(super) fn plugin(app: &mut App) {
                 .build(),
         )
         .add_event::<BoardBuiltEvent>();
+
+    app.observe(location::added);
 
     app.configure_sets(
         FixedUpdate,
@@ -54,6 +60,7 @@ pub(super) fn plugin(app: &mut App) {
             .run_if(in_state(AppState::InGame)),
     );
 
+    app.add_systems(First, occupied::detect_dirty);
     app.add_systems(
         FixedUpdate,
         (
@@ -131,7 +138,7 @@ impl FromWorld for Board {
     }
 }
 
-#[derive(Debug, Default, Reflect)]
+#[derive(Debug, Default, Clone, Reflect)]
 pub struct BoardBounds {
     half_width: i32,
     half_height: i32,
@@ -149,7 +156,7 @@ impl BoardBounds {
         }
     }
 
-    fn is_in_bounds(&self, hex: Hex) -> bool {
+    pub(crate) fn is_in_bounds(&self, hex: Hex) -> bool {
         let (x, y) = axial_to_xy(hex, self.orientation);
         x >= -self.half_width
             && x <= self.half_width

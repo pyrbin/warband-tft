@@ -17,7 +17,7 @@ pub(super) fn location(
         (&mut Location, &GlobalTransform),
         (
             Or<(Changed<GlobalTransform>, Added<Location>)>,
-            Without<Waypoint>,
+            Without<Waypoint>, // if entity has a Waypoint, let pathing decide it's Location
         ),
     >,
     board: Res<Board>,
@@ -30,6 +30,17 @@ pub(super) fn location(
                 *location = value;
             }
         });
+}
+
+pub(super) fn added(
+    trigger: Trigger<OnAdd, Location>,
+    mut transforms: Query<&mut Transform>,
+    board: Res<Board>,
+) {
+    let mut transform = or_return!(transforms.get_mut(trigger.entity()));
+    let hex: Hex = board.layout.world_pos_to_hex(transform.translation.xz());
+    let world_position = board.layout.hex_to_world_pos(hex);
+    transform.translation = world_position.x_y(transform.translation.y);
 }
 
 pub(super) fn on_board_built(

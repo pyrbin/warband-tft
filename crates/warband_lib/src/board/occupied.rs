@@ -9,15 +9,30 @@ use avian3d::{
 use dashmap::DashMap;
 use hexx::Hex;
 
-use crate::prelude::*;
+use crate::{navigation::agent, prelude::*};
 
 use super::Footprint;
 
 #[derive(Resource, Debug, Default, Deref, DerefMut)]
 pub struct Occupied(Arc<OccupiedBoard>);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Occupant {
+    Agent(Entity),
+    Obstacle(Entity),
+}
+
 #[derive(Resource, Debug, Default, Deref, DerefMut)]
-pub struct OccupiedBoard(DashMap<Hex, HashSet<Entity>>);
+pub struct OccupiedBoard(DashMap<Hex, HashSet<Occupant>>);
+
+#[derive(Resource, Debug, Default, Deref, DerefMut)]
+pub struct DirtyOccupied(bool);
+
+impl DirtyOccupied {
+    pub fn is_dirty(&self) -> bool {
+        **self
+    }
+}
 
 impl OccupiedBoard {
     pub fn cells(&self) -> impl Iterator<Item = Hex> + '_ {
@@ -26,21 +41,40 @@ impl OccupiedBoard {
 }
 
 pub(super) fn splat(
-    footprints_changed: Query<Entity, Changed<Footprint>>,
-    footprints: Query<(Entity, &Footprint)>,
-    obstacles: ResMut<Occupied>,
+    footprints: Query<(Entity, &Footprint, Has<agent::Agent>)>,
+    occupied: ResMut<Occupied>,
+    mut dirty_occupied: ResMut<DirtyOccupied>,
 ) {
-    if footprints_changed.is_empty() {
+    if !dirty_occupied.is_dirty() {
         return;
     }
 
-    obstacles.clear();
+    occupied.clear();
 
-    for (entity, footprint) in &footprints {
+    for (entity, footprint, has_agent) in &footprints {
+        let occupant = if has_agent {
+            Occupant::Agent(entity)
+        } else {
+            Occupant::Obstacle(entity)
+        };
+
         for hex in footprint.cells().copied() {
-            obstacles.entry(hex).or_default().insert(entity);
+            occupied.entry(hex).or_default().insert(occupant);
         }
     }
+
+    **dirty_occupied = false;
+}
+
+pub(super) fn detect_dirty(
+    footprints_changed: Query<Entity, Changed<Footprint>>,
+    mut dirty_occupied: ResMut<DirtyOccupied>,
+    removed: RemovedComponents<Footprint>,
+) {
+    if dirty_occupied.is_dirty() || (removed.is_empty() && footprints_changed.is_empty()) {
+        return;
+    }
+    **dirty_occupied = true;
 }
 
 /// ref: https://github.com/vleue/vleue_navigator/blob/main/src/obstacles/mod.rs

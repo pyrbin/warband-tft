@@ -16,6 +16,7 @@ mod navigation;
 mod physics;
 mod player;
 mod stats;
+mod ui;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash, Reflect)]
 pub enum AppState {
@@ -36,6 +37,7 @@ pub fn plugin(app: &mut App) {
         navigation::plugin,
         physics::plugin,
         stats::plugin,
+        ui::plugin,
         #[cfg(feature = "dev")]
         dev::plugin,
     ));

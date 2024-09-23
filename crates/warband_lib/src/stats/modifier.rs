@@ -117,8 +117,10 @@ pub(super) fn modifies_changed<S: Stat>(
     S: Component,
 {
     let mut add_dirty_stat = |entity: &Entity| {
-        if stats.get_mut(*entity).is_ok() {
-            commands.entity(*entity).insert(Dirty::<S>::default());
+        if stats.get_mut(*entity).is_ok()
+            && let Some(mut entity_commands) = commands.get_entity(*entity)
+        {
+            entity_commands.try_insert(Dirty::<S>::default());
         }
     };
 
@@ -146,8 +148,10 @@ fn changed<M: Modifier<S>, S: Stat>(
     S: Component,
 {
     let mut add_dirty_stat = |entity: Entity| {
-        if stats.get_mut(entity).is_ok() {
-            commands.entity(entity).insert(Dirty::<S>::default());
+        if stats.get_mut(entity).is_ok()
+            && let Some(mut entity_commands) = commands.get_entity(entity)
+        {
+            entity_commands.try_insert(Dirty::<S>::default());
         }
     };
 
@@ -190,8 +194,10 @@ fn removed<M: Modifier<S>, S: Stat>(
     };
 
     let mut add_dirty_stat = |entity: &Entity| {
-        if let Ok(stat) = non_dirty.get(*entity) {
-            commands.entity(stat).insert(Dirty::<S>::default());
+        if let Ok(stat) = non_dirty.get(*entity)
+            && let Some(mut entity_commands) = commands.get_entity(stat)
+        {
+            entity_commands.try_insert(Dirty::<S>::default());
         }
     };
 
@@ -276,9 +282,9 @@ pub(super) fn compute<S: Stat + Component>(
     mut commands: Commands,
 ) {
     for (entity, mut stat, flat, additive, multiplicative) in &mut stat {
-        const BASE: f32 = 0.0;
+        const BASE: f32 = 0.0; // TODO: this could be something baked into the Stat
 
-        // ((base + flat) * additive) * multiplicative
+        // formula: ((base + flat) * additive) * multiplicative
         let computed = multiplicative.compute(additive.compute(flat.compute(BASE)));
         let computed = S::clamp(S::round(computed));
 

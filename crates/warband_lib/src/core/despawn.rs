@@ -24,7 +24,7 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Default, Reflect, Clone)]
 #[reflect(Component)]
 #[component(storage = "SparseSet")]
 pub enum Despawn {
@@ -37,7 +37,7 @@ pub enum Despawn {
     WaitFrames(u32),
 }
 
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Default, Reflect, Clone)]
 pub struct Despawning;
 
 fn despawn_timer(

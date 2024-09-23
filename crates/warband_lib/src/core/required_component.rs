@@ -9,7 +9,7 @@ pub(crate) fn required_component<T: Component, U: Component + Default>(
 ) {
     without.par_iter().for_each(|entity| {
         commands.command_scope(|mut c| {
-            c.entity(entity).insert(U::default());
+            c.entity(entity).try_insert(U::default());
         })
     });
 

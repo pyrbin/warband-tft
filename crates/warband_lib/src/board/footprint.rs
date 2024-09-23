@@ -146,13 +146,3 @@ fn point_in_poly2d(pt: Vec2, poly: &[Vec2]) -> bool {
         true
     }
 }
-
-#[cfg(feature = "dev")]
-pub(crate) fn gizmos(mut gizmos: Gizmos, footprints: Query<&Footprint>, board: Res<Board>) {
-    use bevy::color::palettes::tailwind::GREEN_300;
-    for footprint in &footprints {
-        for hex in footprint.cells().copied() {
-            gizmos.hex_scaled_3d(hex, 0.8, &board.layout, GREEN_300);
-        }
-    }
-}

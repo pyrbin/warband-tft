@@ -8,9 +8,7 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 #[derive(PhysicsLayer)]
-pub(crate) enum CollisionLayer {
-    Player,
+pub(crate) enum Layer {
     Units,
     Terrain,
-    Sensor,
 }

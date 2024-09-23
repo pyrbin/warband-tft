@@ -2,6 +2,8 @@ use core::f32;
 
 use crate::prelude::*;
 
+use super::Layer;
+
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MotorSystems {
     Motor,
@@ -45,6 +47,7 @@ pub struct CharacterMotorBundle {
     gravity: GravityScale,
     max_slope_angle: MaxSlopeAngle,
     damping_factor: DampingFactor,
+    collision_layers: CollisionLayers,
 }
 
 impl CharacterMotorBundle {
@@ -61,6 +64,7 @@ impl CharacterMotorBundle {
             gravity: GravityScale(1.0),
             max_slope_angle: MaxSlopeAngle(f32::consts::FRAC_PI_2),
             damping_factor: DampingFactor(0.9),
+            collision_layers: CollisionLayers::new([Layer::Units], [Layer::Terrain]),
         }
     }
 }
@@ -341,5 +345,8 @@ fn collisions(
                 }
             }
         }
+
+        // Clamp the Y velocity to avoid falling through the floor.
+        position.y = position.y.max(0.0);
     }
 }

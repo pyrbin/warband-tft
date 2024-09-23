@@ -4,46 +4,41 @@ pub mod agent;
 pub mod path;
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum NavigationSystems {
+pub enum PathingSystems {
     Maintain,
-    DetectChanges,
     Pathfinding,
 }
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AgentSystems {
     Maintain,
-    TargetReached,
+    Pathing,
     Movement,
 }
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(
         agent::Agent,
-        agent::TargetReached,
-        agent::ArrivalRange,
+        agent::Arrived,
+        agent::ArrivalThreshold,
+        agent::PathingEvent,
         path::Path,
         path::Target,
         path::TargetLocation
     );
 
-    // #FB_TODO: run in a slow schedule, like 16fps
     app.configure_sets(
-        FixedUpdate,
-        (
-            NavigationSystems::Maintain,
-            NavigationSystems::DetectChanges,
-            NavigationSystems::Pathfinding,
-        )
+        FixedUpdate, // TODO: maybe run in a slower schedule?
+        (PathingSystems::Maintain, PathingSystems::Pathfinding)
             .chain()
             .run_if(in_state(AppState::InGame)),
     );
 
     app.configure_sets(
-        PostUpdate,
+        FixedPostUpdate,
         (
             AgentSystems::Maintain,
-            AgentSystems::TargetReached,
+            AgentSystems::Pathing,
             AgentSystems::Movement,
         )
             .chain()
@@ -56,18 +51,25 @@ pub(super) fn plugin(app: &mut App) {
             (
                 required_component::<path::Target, path::TargetLocation>,
                 path::target_location,
+                (path::on_target_changed, path::on_changed),
             )
-                .in_set(NavigationSystems::Maintain),
-            (path::on_changed, path::on_target_changed).in_set(NavigationSystems::DetectChanges),
-            (path::compute, path::poll).in_set(NavigationSystems::Pathfinding),
+                .chain()
+                .in_set(PathingSystems::Maintain),
+            (path::compute, path::poll).in_set(PathingSystems::Pathfinding),
         ),
     );
+
+    app.observe(agent::on_path_event);
 
     app.add_systems(
         PostUpdate,
         (
-            required_component::<agent::Agent, agent::ArrivalRange>.in_set(AgentSystems::Maintain),
-            agent::waypoint.in_set(AgentSystems::TargetReached),
+            (
+                agent::arrived,
+                required_component::<agent::Agent, agent::ArrivalThreshold>,
+            )
+                .in_set(AgentSystems::Maintain),
+            agent::pathing.in_set(AgentSystems::Pathing),
             agent::moving.in_set(AgentSystems::Movement),
         ),
     );

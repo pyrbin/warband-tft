@@ -1,10 +1,12 @@
+use bevy_mod_picking::prelude::*;
+
 use crate::{
     board,
-    navigation::{
-        agent::{Agent, ArrivalRange},
-        path,
+    navigation::{agent, path},
+    physics::{
+        self,
+        motor::{self, Movement},
     },
-    physics::motor::{CharacterMotorBundle, Movement},
     player::camera::MainCamera,
     prelude::*,
     stats::stat,
@@ -71,22 +73,29 @@ fn setup(
 
     // unit
 
-    for i in 0..3 {
+    for i in 0..15 {
+        let random_color = 255.0 * Vec3::new(rand::random(), rand::random(), rand::random());
         commands.spawn((
             Name::unit("Unit"),
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(0.5, 0.5, 0.5)),
-                material: materials.add(Color::srgb_u8(2, 144, 255)),
-                transform: Transform::from_xyz(i as f32, 0.5, i as f32),
+                material: materials.add(Color::srgb_u8(
+                    random_color.x as u8,
+                    random_color.y as u8,
+                    random_color.z as u8,
+                )),
+                transform: Transform::from_xyz(i as f32 - 7.0, 0.5, i as f32 - 7.0),
                 ..default()
             },
             board::Location::default(),
             board::Footprint::default(),
-            Agent::default(),
-            CharacterMotorBundle::new(0.5, 0.5),
+            agent::Agent::default(),
+            agent::ArrivalThreshold(1),
+            motor::CharacterMotorBundle::new(0.5, 0.5),
             path::Target::Entity(target_id),
-            ArrivalRange(1),
-            Movement(250.0),
+            PickableBundle::default(),
+            On::<Pointer<Click>>::target_insert(Despawn::Immediate),
+            Movement(150.0 + (rand::random::<f32>() * 400.0)),
             Health(200.0),
         ));
     }
@@ -94,13 +103,17 @@ fn setup(
     commands.spawn((
         Name::unit("obstacle"),
         SpatialBundle {
-            transform: Transform::from_xyz(-2.0, 2.0, -2.0),
+            transform: Transform::from_xyz(-2.0, 1.75, -2.0),
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(4.0, 4.0, 4.0),
+        Collider::cuboid(3.5, 3.5, 3.5),
         board::Location::default(),
         board::Footprint::default(),
+        CollisionLayers::new(
+            [physics::Layer::Terrain],
+            [physics::Layer::Terrain, physics::Layer::Units],
+        ),
     ));
 }
 
@@ -122,7 +135,7 @@ fn test_target(
         return;
     };
 
-    if !buttons.just_pressed(MouseButton::Left) {
+    if !buttons.just_pressed(MouseButton::Middle) {
         return;
     }
 
