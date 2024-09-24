@@ -1,3 +1,5 @@
+//! TODO: Should try out NavMesh pathfinding instead of cell-based.
+
 use bevy::tasks::AsyncComputeTaskPool;
 use hexx::{algorithms::a_star, Hex};
 

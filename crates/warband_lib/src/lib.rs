@@ -17,6 +17,7 @@ mod physics;
 mod player;
 mod stats;
 mod ui;
+mod unit;
 
 #[derive(States, Default, Clone, Eq, PartialEq, Debug, Hash, Reflect)]
 pub enum AppState {
@@ -38,6 +39,7 @@ pub fn plugin(app: &mut App) {
         physics::plugin,
         stats::plugin,
         ui::plugin,
+        unit::plugin,
         #[cfg(feature = "dev")]
         dev::plugin,
     ));

@@ -73,6 +73,14 @@ pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'sta
     fn round(value: f32) -> f32 {
         value
     }
+
+    /// Returns a [`pool::PoolBundle<Self>`] of [`Self`] with the given value.
+    fn pool(value: f32) -> pool::PoolBundle<Self>
+    where
+        Self: Component,
+    {
+        pool::PoolBundle::new(value)
+    }
 }
 
 fn on_insert<S: Stat + Component>(

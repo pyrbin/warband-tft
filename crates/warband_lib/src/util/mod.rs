@@ -7,6 +7,8 @@ macro_rules! single {
         match $query.get_single() {
             Ok(q) => q,
             _ => {
+                #[cfg(debug_assertions)]
+                info!("no single result found");
                 return;
             }
         }
@@ -19,6 +21,8 @@ macro_rules! single_mut {
         match $query.get_single_mut() {
             Ok(q) => q,
             _ => {
+                #[cfg(debug_assertions)]
+                info!("no single result found");
                 return;
             }
         }

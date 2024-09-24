@@ -272,6 +272,7 @@ fn sync_rig_transform(
             }
         }
 
+        // TODO: currently just overrides to 0,0,0 if no Follow, should not do that :)
         camera_transform.translation = translation;
         camera_transform.rotation = rotation;
     }

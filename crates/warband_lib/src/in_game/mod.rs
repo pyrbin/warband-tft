@@ -3,21 +3,15 @@ use bevy_mod_picking::prelude::*;
 use crate::{
     board,
     navigation::{agent, path},
-    physics::{
-        self,
-        motor::{self, Movement},
-    },
+    physics::motor::{self, Movement},
     player::camera::MainCamera,
     prelude::*,
-    stats::stat,
-    AppState,
+    unit, AppState,
 };
 
 pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(AppState::InGame), setup);
     app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
-
-    app.add_plugins(stat::plugin::<Health>);
 }
 
 #[derive(Component)]
@@ -43,8 +37,6 @@ fn setup(
         Cleanup(OnExit(AppState::InGame)),
     ));
 
-    let cube_mesh = meshes.add(Cuboid::default());
-
     commands.spawn((
         Name::unit("floor"),
         SpatialBundle {
@@ -66,14 +58,13 @@ fn setup(
             },
             board::Location::default(),
             board::Footprint::default(),
-            Health(50.0),
             MoveTo,
         ))
         .id();
 
     // unit
 
-    for i in 0..15 {
+    for i in 0..1 {
         let random_color = 255.0 * Vec3::new(rand::random(), rand::random(), rand::random());
         commands.spawn((
             Name::unit("Unit"),
@@ -96,25 +87,10 @@ fn setup(
             PickableBundle::default(),
             On::<Pointer<Click>>::target_insert(Despawn::Immediate),
             Movement(150.0 + (rand::random::<f32>() * 400.0)),
-            Health(200.0),
+            unit::Unit,
+            unit::stats::Health::pool(100.0),
         ));
     }
-
-    commands.spawn((
-        Name::unit("obstacle"),
-        SpatialBundle {
-            transform: Transform::from_xyz(-2.0, 1.75, -2.0),
-            ..default()
-        },
-        RigidBody::Static,
-        Collider::cuboid(3.5, 3.5, 3.5),
-        board::Location::default(),
-        board::Footprint::default(),
-        CollisionLayers::new(
-            [physics::Layer::Terrain],
-            [physics::Layer::Terrain, physics::Layer::Units],
-        ),
-    ));
 }
 
 fn test_target(
@@ -147,7 +123,3 @@ fn test_target(
     let hex = board.layout.world_pos_to_hex(point.xz());
     target.translation = board.layout.hex_to_world_pos(hex).x0y();
 }
-
-#[derive(Stat, Component, Default, Reflect, Copy, Clone)]
-#[clamp(min = 0)]
-struct Health(pub f32);

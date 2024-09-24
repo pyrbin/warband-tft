@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use bevy_editor_pls::EditorPlugin;
+use bevy_egui::EguiPlugin;
 use bevy_mod_picking::debug::DebugPickingMode;
 
 mod console;
@@ -16,7 +17,6 @@ pub(super) fn plugin(app: &mut App) {
         bevy::diagnostic::SystemInformationDiagnosticsPlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::filtered(vec![]),
     ))
-    .add_plugins(EditorPlugin::default())
     .add_plugins(PhysicsDebugPlugin::default())
     .insert_gizmo_config(
         PhysicsGizmos {
@@ -28,10 +28,23 @@ pub(super) fn plugin(app: &mut App) {
             ..default()
         },
     )
-    .insert_resource(default_editor_controls())
     .insert_resource(DebugPickingMode::Normal);
 
     app.add_plugins((perf::plugin, console::plugin));
+
+    // TODO: hide behind a feature flag
+    const ENABLE_EDITOR: bool = false;
+
+    if ENABLE_EDITOR {
+        app.add_plugins(EditorPlugin::default())
+            .insert_resource(default_editor_controls());
+    } else {
+        app.add_plugins(bevy_inspector_egui::quick::WorldInspectorPlugin::new());
+    }
+
+    if !app.is_plugin_added::<EguiPlugin>() {
+        app.add_plugins(EguiPlugin);
+    }
 
     app.add_systems(
         Update,

@@ -29,7 +29,7 @@ fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
             },
             camera_3d: Camera3d::default(),
             projection: orthographic_fixed_vertical(1.0, 30.0, -100.0, 200.0),
-            transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(0.0, 0., 0.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
         IsDefaultUiCamera,
@@ -78,7 +78,7 @@ fn controls(
             0.0
         };
 
-        yaw_pitch.rotate_yaw(yaw_input * 90.0);
+        yaw_pitch.rotate_yaw(yaw_input * 20.0);
 
         let pitch_input = if input.just_pressed(KeyCode::ArrowDown) {
             1.0
