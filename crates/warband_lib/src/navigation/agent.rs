@@ -28,6 +28,10 @@ impl Agent {
 
 #[derive(Component, Default, Reflect)]
 #[component(storage = "SparseSet")]
+pub struct FollowPath;
+
+#[derive(Component, Default, Reflect)]
+#[component(storage = "SparseSet")]
 pub struct Arrived;
 
 #[derive(Component, Default, Debug, Clone, Deref, DerefMut, Copy, Reflect)]
@@ -135,10 +139,15 @@ pub(super) fn arrived(
     }
 }
 
-pub(super) fn moving(
+pub(super) fn follow(
     mut agents: Query<
         (Entity, &Waypoint, &GlobalTransform),
-        (With<Agent>, With<CharacterMotor>, Without<Arrived>),
+        (
+            With<Agent>,
+            With<FollowPath>,
+            With<CharacterMotor>,
+            Without<Arrived>,
+        ),
     >,
     mut commands: Commands,
     board: Res<Board>,

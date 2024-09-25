@@ -13,7 +13,7 @@ pub enum PathingSystems {
 pub enum AgentSystems {
     Maintain,
     Pathing,
-    Movement,
+    Follow,
 }
 
 pub(super) fn plugin(app: &mut App) {
@@ -39,7 +39,7 @@ pub(super) fn plugin(app: &mut App) {
         (
             AgentSystems::Maintain,
             AgentSystems::Pathing,
-            AgentSystems::Movement,
+            AgentSystems::Follow,
         )
             .chain()
             .run_if(in_state(AppState::InGame)),
@@ -70,7 +70,7 @@ pub(super) fn plugin(app: &mut App) {
             )
                 .in_set(AgentSystems::Maintain),
             agent::pathing.in_set(AgentSystems::Pathing),
-            agent::moving.in_set(AgentSystems::Movement),
+            agent::follow.in_set(AgentSystems::Follow),
         ),
     );
 }

@@ -55,6 +55,7 @@ hexx = { version = "0.18", features = ["grid", "serde", "bevy_reflect"] }
 bevy_spatial = { version = "0.9.0" }
 bevy_mod_picking = { version = "0.20", default-features = true }
 bevy_vector_shapes = { git = "https://github.com/pyrbin/bevy_vector_shapes.git", branch = "orthographic-billboard" }
+big-brain = "0.21.1"
 
 # dev
 bevy_egui = { version = "0.28.0", optional = true } # version governed by bevy_editor_pls
@@ -80,3 +81,4 @@ tiny_bail = "0.3.0"
 glam = "0.27"
 bon = "2.2.1"
 dashmap = "6.1.0"
+bitflags = "2.6.0"

@@ -1,14 +1,17 @@
+use bevy_spatial::kdtree::KDTree3;
 use bevy_vector_shapes::prelude::*;
 use stats::Health;
 
 use crate::{player::camera::MainCamera, prelude::*};
 
+pub mod ai;
 pub mod stats;
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(Unit);
 
     app.add_plugins(stats::plugin);
+    app.add_plugins(ai::plugin);
 
     app.add_systems(Update, ui_hp);
 }
@@ -16,6 +19,35 @@ pub(super) fn plugin(app: &mut App) {
 #[derive(Component, Default, Debug, Clone, Reflect)]
 #[reflect(Component)]
 pub struct Unit;
+
+pub type UnitTree = KDTree3<Unit>;
+
+#[derive(Component, Reflect, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[reflect(Component, Hash, PartialEq)]
+pub struct Allegiance(u32);
+
+impl Allegiance {
+    pub fn is_enemy(&self, other: Self) -> bool {
+        self.0 != other.0
+    }
+
+    pub fn is_ally(&self, other: Self) -> bool {
+        0 != self.0 & other.0
+    }
+}
+
+bitflags::bitflags! {
+    impl Allegiance: u32 {
+        /// The team n°1.
+        const TEAM_1 = 1 << 0;
+        /// The team n°2.
+        const TEAM_2 = 1 << 1;
+        /// All of the teams.
+        const ALL = u32::MAX;
+        /// None of the teams.
+        const NONE = 0;
+    }
+}
 
 fn ui_hp(
     units: Query<(Pool<Health>, &GlobalTransform), With<Unit>>,
