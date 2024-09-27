@@ -9,10 +9,10 @@ use crate::{
 };
 use std::sync::{Arc, RwLock};
 
-use super::agent::Arrived;
+use super::agent::{self};
 
 #[derive(Component, Clone, Copy, Default, PartialEq, Eq, Hash, Debug, From, Reflect)]
-pub enum Target {
+pub enum Destination {
     #[default]
     None,
     Entity(Entity),
@@ -20,37 +20,37 @@ pub enum Target {
 }
 
 #[derive(Component, Clone, Copy, Default, From, Reflect, PartialEq)]
-pub enum TargetLocation {
+pub enum DestinationLocation {
     #[default]
     None,
     Valid(Hex),
 }
 
 pub(super) fn target_location(
-    mut with_target_location: Query<(&Target, &mut TargetLocation)>,
+    mut with_destination: Query<(&Destination, &mut DestinationLocation)>,
     with_location: Query<&Location>,
 ) {
-    with_target_location
+    with_destination
         .par_iter_mut()
-        .for_each(|(target, mut target_location)| {
-            let location: TargetLocation = match target {
-                Target::Cell(hex) => TargetLocation::Valid(*hex),
-                Target::Entity(entity) => {
+        .for_each(|(destination, mut destination_location)| {
+            let location: DestinationLocation = match destination {
+                Destination::Cell(hex) => DestinationLocation::Valid(*hex),
+                Destination::Entity(entity) => {
                     if let Ok(location) = with_location.get(*entity) {
                         if let Location::Valid(hex) = *location {
-                            TargetLocation::Valid(hex)
+                            DestinationLocation::Valid(hex)
                         } else {
-                            TargetLocation::None
+                            DestinationLocation::None
                         }
                     } else {
-                        TargetLocation::None
+                        DestinationLocation::None
                     }
                 }
-                Target::None => TargetLocation::None,
+                Destination::None => DestinationLocation::None,
             };
 
-            if *target_location != location {
-                *target_location = location;
+            if *destination_location != location {
+                *destination_location = location;
             }
         });
 }
@@ -61,44 +61,44 @@ pub struct Path(Vec<Hex>);
 #[derive(Component)]
 pub struct FindingPath(Arc<RwLock<(Option<Vec<Hex>>, bool)>>);
 
-pub(super) fn on_changed(
+pub(super) fn on_occupied_changed(
     mut commands: Commands,
-    with_target: Query<Entity, (With<Target>, Without<Arrived>)>,
-    obstacles: Res<board::Occupied>,
+    with_destination: Query<Entity, (With<Destination>, Without<agent::DestinationReached>)>,
+    occupied: Res<board::Occupied>,
 ) {
-    if !obstacles.is_changed() {
+    if !occupied.is_changed() {
         return;
     }
 
-    for entity in &with_target {
+    for entity in &with_destination {
         commands.entity(entity).insert(Dirty::<Path>::default());
     }
 }
 
-pub(super) fn on_target_changed(
+pub(super) fn on_destination_changed(
     mut commands: Commands,
-    with_target: Query<Entity, Or<(Changed<Target>, Changed<TargetLocation>)>>,
+    with_destination: Query<Entity, Or<(Changed<Destination>, Changed<DestinationLocation>)>>,
 ) {
-    for entity in &with_target {
+    for entity in &with_destination {
         commands.entity(entity).insert(Dirty::<Path>::default());
     }
 }
 
 pub(super) fn compute(
     mut commands: Commands,
-    with_target: Query<(Entity, &TargetLocation, &Location), With<Dirty<Path>>>,
+    with_destination: Query<(Entity, &DestinationLocation, &Location), With<Dirty<Path>>>,
     occupied: Res<board::Occupied>,
     board: Res<board::Board>,
 ) {
     const DEFAULT_COST: u32 = 0;
     const DEFAULT_OCCUPANT_COST: u32 = 1;
 
-    for (entity, target, location) in &with_target {
+    for (entity, destination_location, location) in &with_destination {
         let Location::Valid(start) = *location else {
             return;
         };
 
-        let TargetLocation::Valid(end) = *target else {
+        let DestinationLocation::Valid(end) = *destination_location else {
             commands.entity(entity).remove::<Path>();
             continue;
         };
@@ -159,8 +159,6 @@ pub(super) fn compute(
                         let index = path.len() - p;
                         let distance = start.distance_to(end);
                         let new_distance = path[index].distance_to(end);
-
-                        // TODO: fine tune this
                         if distance < new_distance
                             || (path.len() / 3) as i32 > distance - new_distance
                         {

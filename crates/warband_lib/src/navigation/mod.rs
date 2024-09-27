@@ -12,19 +12,20 @@ pub enum PathingSystems {
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AgentSystems {
     Maintain,
+    Waypoint,
     Pathing,
-    Follow,
 }
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(
         agent::Agent,
-        agent::Arrived,
-        agent::ArrivalThreshold,
+        agent::Pathing,
+        agent::DestinationReached,
+        agent::DestinationRange,
         agent::PathingEvent,
         path::Path,
-        path::Target,
-        path::TargetLocation
+        path::Destination,
+        path::DestinationLocation
     );
 
     app.configure_sets(
@@ -38,8 +39,8 @@ pub(super) fn plugin(app: &mut App) {
         FixedPostUpdate,
         (
             AgentSystems::Maintain,
+            AgentSystems::Waypoint,
             AgentSystems::Pathing,
-            AgentSystems::Follow,
         )
             .chain()
             .run_if(in_state(AppState::InGame)),
@@ -49,9 +50,11 @@ pub(super) fn plugin(app: &mut App) {
         FixedUpdate,
         (
             (
-                required_component::<path::Target, path::TargetLocation>,
+                required_component::<agent::Agent, path::Destination>,
+                required_component::<agent::Agent, agent::Pathing>,
+                required_component::<path::Destination, path::DestinationLocation>,
                 path::target_location,
-                (path::on_target_changed, path::on_changed),
+                (path::on_destination_changed, path::on_occupied_changed),
             )
                 .chain()
                 .in_set(PathingSystems::Maintain),
@@ -65,12 +68,12 @@ pub(super) fn plugin(app: &mut App) {
         PostUpdate,
         (
             (
-                agent::arrived,
-                required_component::<agent::Agent, agent::ArrivalThreshold>,
+                agent::destination_reached,
+                required_component::<agent::Agent, agent::DestinationRange>,
             )
                 .in_set(AgentSystems::Maintain),
+            agent::waypoint.in_set(AgentSystems::Waypoint),
             agent::pathing.in_set(AgentSystems::Pathing),
-            agent::follow.in_set(AgentSystems::Follow),
         ),
     );
 }

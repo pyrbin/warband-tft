@@ -47,7 +47,7 @@ fn setup(
         Collider::cuboid(100.0, 0.1, 100.0),
     ));
 
-    let target_id = commands
+    commands
         .spawn((
             Name::unit("Target"),
             PbrBundle {
@@ -58,13 +58,16 @@ fn setup(
             },
             board::Location::default(),
             board::Footprint::default(),
+            unit::Unit,
+            unit::Allegiance::TEAM_2,
+            unit::stats::Health::pool(999.0),
             MoveTo,
         ))
         .id();
 
     // unit
 
-    for i in 0..1 {
+    for i in 0..5 {
         let random_color = 255.0 * Vec3::new(rand::random(), rand::random(), rand::random());
         commands.spawn((
             Name::unit("Unit"),
@@ -80,10 +83,17 @@ fn setup(
             },
             board::Location::default(),
             board::Footprint::default(),
-            agent::Agent::default(),
-            agent::ArrivalThreshold(1),
-            motor::CharacterMotorBundle::new(0.5, 0.5),
-            path::Target::Entity(target_id),
+            (
+                agent::Agent::default(),
+                agent::DestinationRange(1),
+                motor::CharacterMotorBundle::new(0.5, 0.5),
+                path::Destination::None,
+            ),
+            (
+                unit::ai::UNIT_THINKER.clone(),
+                unit::Allegiance::TEAM_1,
+                unit::ai::Target::None,
+            ),
             PickableBundle::default(),
             On::<Pointer<Click>>::target_insert(Despawn::Immediate),
             Movement(150.0 + (rand::random::<f32>() * 400.0)),

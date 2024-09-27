@@ -1,4 +1,5 @@
-use bevy_spatial::kdtree::KDTree3;
+use bevy::color::palettes::tailwind::{GRAY_700, RED_600};
+use bevy_spatial::{kdtree::KDTree3, AutomaticUpdate, TransformMode};
 use bevy_vector_shapes::prelude::*;
 use stats::Health;
 
@@ -9,7 +10,11 @@ pub mod stats;
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(Unit);
-
+    app.add_plugins(
+        AutomaticUpdate::<Unit>::new()
+            .with_frequency(Duration::from_secs_f32(0.3))
+            .with_transform(TransformMode::GlobalTransform),
+    );
     app.add_plugins(stats::plugin);
     app.add_plugins(ai::plugin);
 
@@ -54,18 +59,31 @@ fn ui_hp(
     camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut painter: ShapePainter,
 ) {
-    use bevy::color::palettes::tailwind::GRAY_200;
-
-    let (camera, camera_transform) = or_return!(camera.iter().next());
+    let (_, camera_transform) = or_return!(camera.iter().next());
     let left = camera_transform.left();
+    let up = camera_transform.up();
 
     for (hp, transform) in &units {
+        const LEFT_OFFSET: f32 = 0.75;
+
         let position = transform.translation();
         painter.alignment = Alignment::Billboard;
-        // TODO: fix styling & y-position depending on progress state
-        painter.transform.translation = position + left * 0.75;
-        painter.set_color(GRAY_200);
-        painter.corner_radii = Vec4::splat(0.01);
-        painter.rect(Vec2::new(0.4, 1.0 * hp.progress01()));
+        painter.corner_radii = Vec4::splat(0.0);
+        let (height, offset) = progress_bar(1.0, hp.progress01());
+
+        // bg
+        painter.transform.translation = position + left * LEFT_OFFSET;
+        painter.set_color(GRAY_700);
+        painter.rect(Vec2::new(0.3, height));
+
+        // fg
+        painter.transform.translation = position + left * LEFT_OFFSET - offset * up;
+        painter.set_color(RED_600);
+        painter.rect(Vec2::new(0.3, height));
     }
+}
+
+fn progress_bar(value: f32, progress: f32) -> (f32, f32) {
+    let height = value * progress;
+    (height, (value - height) / 2.0)
 }

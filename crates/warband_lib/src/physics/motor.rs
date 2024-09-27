@@ -74,8 +74,9 @@ pub struct CharacterMotor;
 
 #[derive(Event, Reflect)]
 pub enum MovementAction {
-    Toward(Vec3),
-    Dir(Dir2),
+    Towards(Vec3),
+    Direction(Dir2),
+    Teleport(Vec3),
     Jump,
 }
 
@@ -139,15 +140,22 @@ fn gravity(
 fn movement(
     trigger: Trigger<MovementAction>,
     time: Res<Time>,
-    mut motors: Query<(&Movement, &Transform, &mut LinearVelocity, Has<Grounded>)>,
+    mut motors: Query<(
+        &Movement,
+        &Transform,
+        &mut Position,
+        &mut LinearVelocity,
+        Has<Grounded>,
+    )>,
 ) {
     let delta_time = time.delta_seconds();
     let entity = trigger.entity();
 
-    let (movement, transform, mut linear_velocity, grounded) = or_return!(motors.get_mut(entity));
+    let (movement, transform, mut position, mut linear_velocity, grounded) =
+        or_return!(motors.get_mut(entity));
     let move_speed = movement.value() * delta_time;
     match trigger.event() {
-        MovementAction::Toward(translation) => {
+        MovementAction::Towards(translation) => {
             const ARRIVE_SPEED_MOD: f32 = 0.75;
             let target = move_towards(transform.translation, *translation, move_speed);
             let velocity = (target - transform.translation)
@@ -156,8 +164,13 @@ fn movement(
             linear_velocity.x += velocity.x;
             linear_velocity.z += velocity.z;
         }
-
-        MovementAction::Dir(dir) => {
+        MovementAction::Teleport(translation) => {
+            linear_velocity.x = 0.0;
+            linear_velocity.z = 0.0;
+            position.0.x = translation.x;
+            position.0.z = translation.z;
+        }
+        MovementAction::Direction(dir) => {
             linear_velocity.x += dir.x * move_speed;
             linear_velocity.z += dir.y * move_speed;
         }
