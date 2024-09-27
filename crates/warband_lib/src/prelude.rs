@@ -8,7 +8,7 @@ pub(crate) use crate::{
     required_component::*,
     single, single_mut,
     stats::{pool::Pool, stat::Stat},
-    util::{math_ext::*, *},
+    util::{bevy_ext::*, math_ext::*, *},
 };
 pub(crate) use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};
 pub(crate) use avian3d::prelude::*;

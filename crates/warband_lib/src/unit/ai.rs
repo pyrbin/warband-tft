@@ -8,7 +8,7 @@ use crate::{
 use bevy_spatial::SpatialAccess;
 use big_brain::prelude::*;
 
-use super::{stats, Allegiance, UnitTree};
+use super::{combat::DamageEvent, Allegiance, UnitTree};
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(Target);
@@ -46,7 +46,7 @@ pub(crate) struct Seek {
     pub attack_range: u32,
 }
 
-pub fn seeker_scorer(
+fn seeker_scorer(
     agents: Query<(Has<agent::DestinationReached>, &Target)>,
     mut actors: Query<(&Actor, &mut Score), With<Scorer<Seek>>>,
 ) {
@@ -61,7 +61,7 @@ pub fn seeker_scorer(
     }
 }
 
-pub fn seek(
+fn seek(
     mut units: Query<(
         &Transform,
         &mut Target,
@@ -160,7 +160,7 @@ pub(crate) struct Attack {
     pub damage: f32,
 }
 
-pub fn attack_scorer(
+fn attack_scorer(
     units: Query<(Has<agent::DestinationReached>, &Target)>,
     mut actors: Query<(&Actor, &mut Score), With<Scorer<Attack>>>,
 ) {
@@ -177,10 +177,10 @@ pub fn attack_scorer(
     }
 }
 
-pub fn attack(
+fn attack(
     units: Query<(&Target, Has<agent::DestinationReached>)>,
     mut actors: Query<(&Actor, &mut ActionState, &Attack), With<Attack>>,
-    mut with_health: Query<Pool<stats::Health>>,
+    mut damage_event: EventWriter<DamageEvent>,
     time: Res<Time>,
 ) {
     let delta = time.delta_seconds();
@@ -203,8 +203,11 @@ pub fn attack(
                     continue;
                 };
 
-                let mut pool = or_continue!(with_health.get_mut(*target_entity));
-                pool -= 1.0 * delta * attack.damage;
+                damage_event.send(DamageEvent {
+                    source: *actor,
+                    target: *target_entity,
+                    damage: attack.damage * delta,
+                });
             }
             ActionState::Cancelled => {
                 *state = ActionState::Failure;
