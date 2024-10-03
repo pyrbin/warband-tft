@@ -27,22 +27,10 @@ pub struct Unit;
 
 pub type UnitTree = KDTree3<Unit>;
 
-#[derive(Component, Reflect, Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[reflect(Component, Hash, PartialEq)]
-pub struct Allegiance(u32);
-
-impl Allegiance {
-    pub fn is_enemy(&self, other: Self) -> bool {
-        self.0 != other.0
-    }
-
-    pub fn is_ally(&self, other: Self) -> bool {
-        0 != self.0 & other.0
-    }
-}
-
 bitflags::bitflags! {
-    impl Allegiance: u32 {
+    #[derive(Default, Component, Reflect)]
+    #[reflect(Component, PartialEq)]
+    pub struct Allegiance: u32 {
         /// The team n°1.
         const TEAM_1 = 1 << 0;
         /// The team n°2.
@@ -51,6 +39,16 @@ bitflags::bitflags! {
         const ALL = u32::MAX;
         /// None of the teams.
         const NONE = 0;
+    }
+}
+
+impl Allegiance {
+    pub fn is_enemy(&self, other: Self) -> bool {
+        !self.is_ally(other)
+    }
+
+    pub fn is_ally(&self, other: Self) -> bool {
+        self.intersects(other)
     }
 }
 

@@ -15,6 +15,7 @@ mod core;
 mod navigation;
 mod physics;
 mod player;
+mod spells;
 mod stats;
 mod ui;
 mod unit;

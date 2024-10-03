@@ -1,5 +1,6 @@
 #![feature(concat_idents)]
 mod bevy;
+mod spell;
 mod stat;
 
 pub(crate) const CRATE_IDENT: &str = "warband_lib";
@@ -19,7 +20,15 @@ pub fn app_register_types(input: TokenStream) -> TokenStream {
 /// Derive macro generating an impl of the trait `Stat`.
 #[proc_macro_error]
 #[proc_macro_derive(Stat, attributes(stat, clamp, round))]
-pub fn stat_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn stat_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     crate::stat::impl_stat_derive(&ast)
+}
+
+/// Derive macro generating an impl of the trait `SpellEffect`.
+#[proc_macro_error]
+#[proc_macro_derive(SpellEffect, attributes(effect))]
+pub fn spell_effect_derive(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    crate::spell::impl_spell_effect_derive(&ast)
 }
