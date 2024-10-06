@@ -25,10 +25,14 @@ pub fn stat_derive(input: TokenStream) -> TokenStream {
     crate::stat::impl_stat_derive(&ast)
 }
 
-/// Derive macro generating an impl of the trait `SpellEffect`.
-#[proc_macro_error]
-#[proc_macro_derive(SpellEffect, attributes(effect))]
-pub fn spell_effect_derive(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-    crate::spell::impl_spell_effect_derive(&ast)
+#[proc_macro_attribute]
+pub fn spell_effect(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as syn::ItemImpl);
+    crate::spell::impl_spell_effect(&ast)
+}
+
+// TODO: do I need this dummy export just to make the macro work?
+#[proc_macro_attribute]
+pub fn on(attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
 }

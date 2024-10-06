@@ -1,4 +1,3 @@
-use effect::Spell;
 use enumflags2::BitFlags;
 use hexx::Hex;
 use stats::{Coeff, Damage, Power, Size};
@@ -27,9 +26,18 @@ fn example(mut commands: Commands) {
 }
 
 #[derive(Event, Copy, Clone, Debug, Reflect)]
+pub(crate) struct SpellPrepareEvent {
+    caster: Entity,
+    target: SpellTarget,
+    spell: Entity,
+}
+
+#[derive(Event, Copy, Clone, Debug, Reflect)]
 pub(crate) struct SpellCastEvent {
     caster: Entity,
     target: SpellTarget,
+    delivery: Option<Entity>,
+    spell: Entity,
 }
 
 #[derive(Event, Copy, Clone, Debug, Reflect)]
@@ -37,6 +45,7 @@ pub(crate) struct SpellImpactEvent {
     caster: Entity,
     target: SpellTarget,
     delivery: Entity,
+    spell: Entity,
 }
 
 #[derive(Default, Clone, Copy, Debug, Reflect)]
@@ -48,27 +57,30 @@ pub enum SpellTarget {
     None,
 }
 
-#[derive(SpellEffect, Component, Default, Clone, Deref, DerefMut, From)]
+#[derive(Component, Default, Clone, Deref, DerefMut, From)]
 pub(crate) struct Augments(pub HashSet<Entity>);
 
+#[spell_effect]
 impl Augments {
+    #[on(SpellCastEvent)]
     fn cast(
-        In((event, Spell(spell))): In<(SpellCastEvent, Spell)>,
+        In(event): In<SpellCastEvent>,
         with_augments: Query<&Augments>,
         mut commands: Commands,
     ) {
-        let augments = or_return!(with_augments.get(spell));
+        let augments = or_return!(with_augments.get(event.spell));
         for &augment in augments.0.iter() {
             commands.trigger_targets(event, augment);
         }
     }
 
+    #[on(SpellImpactEvent)]
     fn impact(
-        In((event, Spell(spell))): In<(SpellImpactEvent, Spell)>,
+        In(event): In<SpellImpactEvent>,
         with_augments: Query<&Augments>,
         mut commands: Commands,
     ) {
-        let augments = or_return!(with_augments.get(spell));
+        let augments = or_return!(with_augments.get(event.spell));
         for &augment in augments.0.iter() {
             commands.trigger_targets(event, augment);
         }
