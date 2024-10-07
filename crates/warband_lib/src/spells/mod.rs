@@ -1,3 +1,4 @@
+use effect::DamageOnImpact;
 use enumflags2::BitFlags;
 use hexx::Hex;
 use stats::{Coeff, Damage, Power, Size};
@@ -10,7 +11,15 @@ pub mod effect;
 pub mod stats;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins(effect::plugin::<Augments>);
+    app.add_event::<SpellPrepareEvent>();
+    app.add_event::<SpellCastEvent>();
+    app.add_event::<SpellImpactEvent>();
+
+    app.add_plugins((
+        effect::plugin::<SpellType>,
+        effect::plugin::<DamageOnImpact>,
+        effect::plugin::<augment::Augments>,
+    ));
 }
 
 fn example(mut commands: Commands) {
@@ -19,10 +28,17 @@ fn example(mut commands: Commands) {
         CastTarget::Entity,
         Element::FIRE,
         Damage(10.0),
+        DamageOnImpact,
         Coeff::<Power, Damage>::new(0.2),
         Range(3.0),
         Size(1.0),
     ));
+}
+
+#[derive(Event, Copy, Clone, Debug, Reflect)]
+pub(crate) struct SpellEvent<T> {
+    event: T,
+    entity: Entity,
 }
 
 #[derive(Event, Copy, Clone, Debug, Reflect)]
@@ -44,7 +60,7 @@ pub(crate) struct SpellCastEvent {
 pub(crate) struct SpellImpactEvent {
     caster: Entity,
     target: SpellTarget,
-    delivery: Entity,
+    delivery: Option<Entity>,
     spell: Entity,
 }
 
@@ -57,41 +73,41 @@ pub enum SpellTarget {
     None,
 }
 
-#[derive(Component, Default, Clone, Deref, DerefMut, From)]
-pub(crate) struct Augments(pub HashSet<Entity>);
-
-#[spell_effect]
-impl Augments {
-    #[on(SpellCastEvent)]
-    fn cast(
-        In(event): In<SpellCastEvent>,
-        with_augments: Query<&Augments>,
-        mut commands: Commands,
-    ) {
-        let augments = or_return!(with_augments.get(event.spell));
-        for &augment in augments.0.iter() {
-            commands.trigger_targets(event, augment);
-        }
-    }
-
-    #[on(SpellImpactEvent)]
-    fn impact(
-        In(event): In<SpellImpactEvent>,
-        with_augments: Query<&Augments>,
-        mut commands: Commands,
-    ) {
-        let augments = or_return!(with_augments.get(event.spell));
-        for &augment in augments.0.iter() {
-            commands.trigger_targets(event, augment);
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component, Reflect)]
 pub(crate) enum SpellType {
     Projectile(ProjectileType),
     Area(AreaType),
     Instant,
+}
+
+#[spell_effect]
+impl SpellType {
+    #[on(SpellPrepareEvent)]
+    fn on_prepare(
+        In(event): In<SpellEvent<SpellPrepareEvent>>,
+        with_spell_type: Query<&SpellType>,
+        mut commands: Commands,
+    ) {
+        let event = event.event;
+        let spell_type = or_return!(with_spell_type.get(event.spell));
+
+        match spell_type {
+            SpellType::Projectile(_) => {}
+            SpellType::Area(_) => {}
+            SpellType::Instant => {
+                commands.trigger_targets(
+                    SpellCastEvent {
+                        caster: event.caster,
+                        target: event.target,
+                        spell: event.spell,
+                        delivery: None,
+                    },
+                    event.spell,
+                );
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Component, Reflect)]

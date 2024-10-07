@@ -24,10 +24,10 @@ pub(super) fn impl_spell_effect(input: &ItemImpl) -> TokenStream {
     let crate_ident = match crate_name(CRATE_IDENT)
         .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
     {
-        FoundCrate::Itself => quote!(crate::spells::effect),
+        FoundCrate::Itself => quote!(crate::spells),
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
-            quote!( #ident::spells::effect )
+            quote!( #ident::spells )
         }
     };
 
@@ -52,8 +52,7 @@ pub(super) fn impl_spell_effect(input: &ItemImpl) -> TokenStream {
                     let event_type = &on_attr.event;
                     let function_name = &method.sig.ident;
 
-                    // TODO: throw error if multiple #[on(EventType)] attributes are present of same
-                    // type
+                    // TODO: error if multiple #[on(EventType)] attributes are present of same type
 
                     // Generate code for system registration
                     system_registrations.push(quote! {
@@ -63,8 +62,14 @@ pub(super) fn impl_spell_effect(input: &ItemImpl) -> TokenStream {
                                     effect: Query<Entity, With<#name>>,
                                     mut commands: Commands| {
                                 let entity = trigger.entity();
-                                let event = trigger.event().clone();
                                 let _ = or_return!(effect.get(entity));
+
+                                let event = trigger.event().clone();
+                                let event = #crate_ident::SpellEvent {
+                                    event,
+                                    entity
+                                };
+
                                 commands.run_system_with_input(system_id, event);
                             },
                         );
@@ -77,7 +82,7 @@ pub(super) fn impl_spell_effect(input: &ItemImpl) -> TokenStream {
     let gen = quote! {
         #input
 
-        impl #impl_generics  #crate_ident::SpellEffectConfiguration for #name #ty_generics #where_clause {
+        impl #impl_generics  #crate_ident::effect::SpellEffectConfiguration for #name #ty_generics #where_clause {
             fn configure(app: &mut App) {
                 let world = app.world_mut();
                 #(#system_registrations)*

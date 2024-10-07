@@ -1,26 +1,34 @@
-use crate::prelude::*;
+use crate::{prelude::*, unit::combat::DamageEvent};
 
-use super::{SpellCastEvent, SpellPrepareEvent};
+use super::{stats::Damage, SpellEvent, SpellImpactEvent, SpellTarget};
 
 pub(crate) fn plugin<T: SpellEffectConfiguration + Component>(app: &mut App) {
     T::configure(app);
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Spell(pub Entity);
-
 pub(crate) trait SpellEffectConfiguration: Component + 'static {
     fn configure(app: &mut App);
 }
 
-#[derive(Component, Clone, Copy, Debug)]
-struct DealDamage;
+#[derive(Component)]
+pub(crate) struct DamageOnImpact;
 
 #[spell_effect]
-impl DealDamage {
-    #[on(SpellPrepareEvent)]
-    fn prepare(event: In<SpellPrepareEvent>) {}
-
-    #[on(SpellCastEvent)]
-    fn cast(event: In<SpellCastEvent>) {}
+impl DamageOnImpact {
+    #[on(SpellImpactEvent)]
+    fn on_impact(
+        In(event): In<SpellEvent<SpellImpactEvent>>,
+        with_damage: Query<&Damage>,
+        mut event_writer: EventWriter<DamageEvent>,
+    ) {
+        let event = event.event;
+        let damage = or_return!(with_damage.get(event.spell));
+        if let SpellTarget::Entity(target) = event.target {
+            event_writer.send(DamageEvent {
+                target,
+                damage: **damage,
+                source: event.caster,
+            });
+        };
+    }
 }

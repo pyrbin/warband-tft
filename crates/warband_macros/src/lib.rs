@@ -31,7 +31,6 @@ pub fn spell_effect(_attr: TokenStream, input: TokenStream) -> TokenStream {
     crate::spell::impl_spell_effect(&ast)
 }
 
-// TODO: do I need this dummy export just to make the macro work?
 #[proc_macro_attribute]
 pub fn on(attr: TokenStream, item: TokenStream) -> TokenStream {
     item
