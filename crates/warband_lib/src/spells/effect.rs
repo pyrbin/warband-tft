@@ -11,10 +11,10 @@ pub(crate) trait SpellEffectConfiguration: Component + 'static {
 }
 
 #[derive(Component)]
-pub(crate) struct DamageOnImpact;
+pub(crate) struct DealDamage;
 
 #[spell_effect]
-impl DamageOnImpact {
+impl DealDamage {
     #[on(SpellImpactEvent)]
     fn on_impact(
         In(event): In<SpellEvent<SpellImpactEvent>>,
