@@ -1,6 +1,13 @@
-use bevy::ecs::system::EntityCommands;
-use dyn_clone::DynClone;
+use std::borrow::Cow;
+
+use action::*;
+use effect::*;
+
+use effect::Interval;
 use enum_dispatch::enum_dispatch;
+
+pub mod action;
+pub mod effect;
 
 use crate::prelude::*;
 
@@ -9,36 +16,39 @@ fn fireball() -> impl Bundle {
         Name::new("fireball"),
         AbilityType::Projectile,
         School::FIRE,
-        Targeting::ENTITY | Targeting::CASTER,
+        Targets::ENTITY | Targets::CASTER,
         TargetTeam::HOSTILE | TargetTeam::FRIENDLY,
-        OnAbilityHit((
-            Action(Targeting::POINT, AbilityTarget::None),
-            Action(Targeting::POINT, AbilityTarget::None),
-        )),
+        EventTrigger::OnCast((Action(Targets::POINT, AbilityTarget::None),)),
+        EventTrigger::OnHit(Effect(Targets::ENTITY, EffectId("ignite".into()))),
     )
 }
 
-#[derive(Component, Debug, Clone, Default)]
-pub struct OnAbilityHit<B: Bundle>(pub B);
-
-pub(crate) trait AbilityAction {}
-
-// ActionStatement
-pub(crate) trait AbilityActionCommand {
-    fn targeting(&self) -> Targeting;
-    fn actions(&self) -> Box<dyn BundleBox>; // TODO: Only allow 1 action for now
+fn ignite() -> impl Bundle {
+    (
+        EffectType::Aura,
+        AuraType::Debuff,
+        School::FIRE,
+        Duration(5.0),
+        Interval(0.4),
+        OnInterval(Action(Targets::ENTITY, AbilityTarget::None)),
+    )
 }
 
-#[derive(Component, Clone)]
-pub(crate) struct Action<B: Bundle + Clone>(Targeting, B);
+#[derive(Reflect, Component, Clone, Default, Debug)]
+#[reflect(Component, Default, Debug)]
+pub(crate) struct AbilityId(pub(crate) Cow<'static, str>);
 
-impl<B: Bundle + Clone> AbilityActionCommand for Action<B> {
-    fn targeting(&self) -> Targeting {
-        self.0
-    }
-    fn actions(&self) -> Box<dyn BundleBox> {
-        Box::new(self.1.clone())
-    }
+#[derive(Component, Debug)]
+pub enum EventTrigger<B: Bundle> {
+    OnHit(B),
+    OnCast(B),
+}
+
+#[derive(Event, Clone, Reflect)]
+#[enum_dispatch(AbilityEvent)]
+pub(crate) enum AbilityEvents {
+    OnCast(OnCast),
+    OnHit(OnHit),
 }
 
 #[enum_dispatch]
@@ -86,13 +96,6 @@ impl AbilityEvent for OnHit {
     }
 }
 
-#[derive(Event, Clone, Reflect)]
-#[enum_dispatch(AbilityEvent)]
-pub(crate) enum AbilityEvents {
-    OnCast(OnCast),
-    OnHit(OnHit),
-}
-
 #[derive(Component, Default, Clone, Copy, Debug, Reflect)]
 pub enum AbilityTarget {
     Point(Vec2),
@@ -120,7 +123,7 @@ bitflags::bitflags! {
 bitflags::bitflags! {
     #[derive(Default, Component, Reflect)]
     #[reflect(Component, PartialEq)]
-    pub struct Targeting: u8 {
+    pub struct Targets: u8 {
         const ENTITY = 1 << 0;
         const POINT = 1 << 1;
         const CASTER = 1 << 2;
@@ -133,37 +136,6 @@ bitflags::bitflags! {
     pub struct TargetTeam: u8 {
         const HOSTILE = 1 << 0;
         const FRIENDLY = 1 << 1;
-    }
-}
-
-pub(crate) trait BundleBox: DynClone + Sync + Send + 'static {
-    fn insert(&self, entity_commands: EntityCommands);
-    fn spawn(&self, commands: Commands);
-}
-
-dyn_clone::clone_trait_object!(BundleBox);
-
-impl<T: Bundle + Clone> BundleBox for T {
-    fn insert(&self, mut entity_commands: EntityCommands) {
-        entity_commands.insert((*self).clone());
-    }
-    fn spawn(&self, mut commands: Commands) {
-        commands.spawn((*self).clone());
-    }
-}
-
-#[derive(Component)]
-pub struct On<T: AbilityEvent + Clone> {
-    _marker: std::marker::PhantomData<T>,
-    actions: Box<dyn BundleBox>,
-}
-
-impl<T: AbilityEvent> On<T> {
-    pub fn new<A: Bundle + Clone>(actions: A) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            actions: Box::new(actions),
-        }
     }
 }
 
@@ -185,7 +157,7 @@ impl<T: AbilityEvent> On<T> {
 //     (
 //         AbilityType::Projectile,
 //         ProjectileType::Tracking,
-//         Targeting::ENTITY,
+//         Targets::ENTITY,
 //         School::FIRE,
 //         Damage(10.0),
 //         Range(1.0),
