@@ -32,6 +32,6 @@ pub fn spell_effect(_attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn on(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn on(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }

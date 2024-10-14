@@ -3,10 +3,10 @@ use dyn_clone::DynClone;
 
 use crate::prelude::*;
 
-use super::{AbilityEvents, AbilityTarget, EffectId, Targets};
+use super::{events::AbilityEvents, AbilityTarget, Targets};
 
 pub(crate) trait AbilityAction {
-    fn apply(event: In<(AbilityTarget, AbilityEvents)>);
+    fn apply(event: In<(AbilityTarget, AbilityEvents)>) {}
 }
 
 pub(crate) trait AbilityActionCommand {
@@ -14,22 +14,11 @@ pub(crate) trait AbilityActionCommand {
     fn actions(&self) -> Box<dyn BundleBox>;
 }
 
+// TODO: just allow single action for simplicity.
 #[derive(Component, Clone)]
 pub(crate) struct Action<B: Bundle + Clone>(pub(crate) Targets, pub(crate) B);
 
 impl<B: Bundle + Clone> AbilityActionCommand for Action<B> {
-    fn targets(&self) -> Targets {
-        self.0
-    }
-    fn actions(&self) -> Box<dyn BundleBox> {
-        Box::new(self.1.clone())
-    }
-}
-
-#[derive(Component, Clone)]
-pub(crate) struct Effect(pub(crate) Targets, pub(crate) EffectId);
-
-impl AbilityActionCommand for Effect {
     fn targets(&self) -> Targets {
         self.0
     }

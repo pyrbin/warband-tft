@@ -48,84 +48,6 @@
 			"typeName": "page"
 		},
 		{
-			"id": "pointer:pointer",
-			"typeName": "pointer",
-			"x": 1110.6817012953547,
-			"y": 419.05084508035065,
-			"lastActivityTimestamp": 1728590727019,
-			"meta": {}
-		},
-		{
-			"followingUserId": null,
-			"opacityForNextShape": 1,
-			"stylesForNextShape": {
-				"tldraw:font": "mono",
-				"tldraw:color": "black",
-				"tldraw:size": "s"
-			},
-			"brush": null,
-			"scribbles": [],
-			"cursor": {
-				"type": "default",
-				"rotation": 0
-			},
-			"isFocusMode": false,
-			"exportBackground": true,
-			"isDebugMode": false,
-			"isToolLocked": false,
-			"screenBounds": {
-				"x": 0,
-				"y": 0,
-				"w": 1052,
-				"h": 1292
-			},
-			"insets": [
-				false,
-				false,
-				true,
-				false
-			],
-			"zoomBrush": null,
-			"isGridMode": false,
-			"isPenMode": false,
-			"chatMessage": "",
-			"isChatting": false,
-			"highlightedUserIds": [],
-			"isFocused": true,
-			"devicePixelRatio": 1,
-			"isCoarsePointer": false,
-			"isHoveringCanvas": true,
-			"openMenus": [],
-			"isChangingStyle": false,
-			"isReadonly": false,
-			"meta": {},
-			"duplicateProps": null,
-			"id": "instance:instance",
-			"currentPageId": "page:page",
-			"typeName": "instance"
-		},
-		{
-			"editingShapeId": null,
-			"croppingShapeId": null,
-			"selectedShapeIds": [],
-			"hoveredShapeId": null,
-			"erasingShapeIds": [],
-			"hintingShapeIds": [],
-			"focusedGroupId": null,
-			"meta": {},
-			"id": "instance_page_state:page:page",
-			"pageId": "page:page",
-			"typeName": "instance_page_state"
-		},
-		{
-			"x": -367.245952336316,
-			"y": 201.35522547952598,
-			"z": 0.9509900499,
-			"meta": {},
-			"id": "camera:page:page",
-			"typeName": "camera"
-		},
-		{
 			"x": 521,
 			"y": 488.8046875,
 			"rotation": 0,
@@ -1229,6 +1151,384 @@
 			},
 			"parentId": "page:page",
 			"index": "a8dly",
+			"typeName": "shape"
+		},
+		{
+			"id": "pointer:pointer",
+			"typeName": "pointer",
+			"x": 477.8690890946484,
+			"y": 1332.2305989899992,
+			"lastActivityTimestamp": 1728937894344,
+			"meta": {}
+		},
+		{
+			"followingUserId": null,
+			"opacityForNextShape": 1,
+			"stylesForNextShape": {
+				"tldraw:font": "mono",
+				"tldraw:color": "black",
+				"tldraw:size": "m"
+			},
+			"brush": null,
+			"scribbles": [],
+			"cursor": {
+				"type": "default",
+				"rotation": 0
+			},
+			"isFocusMode": false,
+			"exportBackground": true,
+			"isDebugMode": false,
+			"isToolLocked": false,
+			"screenBounds": {
+				"x": 0,
+				"y": 0,
+				"w": 1080,
+				"h": 1292
+			},
+			"insets": [
+				false,
+				false,
+				true,
+				false
+			],
+			"zoomBrush": null,
+			"isGridMode": false,
+			"isPenMode": false,
+			"chatMessage": "",
+			"isChatting": false,
+			"highlightedUserIds": [],
+			"isFocused": true,
+			"devicePixelRatio": 1,
+			"isCoarsePointer": false,
+			"isHoveringCanvas": true,
+			"openMenus": [],
+			"isChangingStyle": false,
+			"isReadonly": false,
+			"meta": {},
+			"duplicateProps": null,
+			"id": "instance:instance",
+			"currentPageId": "page:page",
+			"typeName": "instance"
+		},
+		{
+			"editingShapeId": null,
+			"croppingShapeId": null,
+			"selectedShapeIds": [],
+			"hoveredShapeId": null,
+			"erasingShapeIds": [],
+			"hintingShapeIds": [],
+			"focusedGroupId": null,
+			"meta": {},
+			"id": "instance_page_state:page:page",
+			"pageId": "page:page",
+			"typeName": "instance_page_state"
+		},
+		{
+			"x": 450.82517021213323,
+			"y": -839.8279707508917,
+			"z": 0.8732691000000001,
+			"meta": {},
+			"id": "camera:page:page",
+			"typeName": "camera"
+		},
+		{
+			"x": -566.7113310848965,
+			"y": 844.8840633777937,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:cCDhNao-4TVJA5HE_Qk6-",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 116.203125,
+				"text": "Fireball",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aBBkT",
+			"typeName": "shape"
+		},
+		{
+			"x": -508.8778529669401,
+			"y": 904.98924744992,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:wPlURPyBMxm7neUTwJ8E4",
+			"type": "text",
+			"props": {
+				"color": "yellow",
+				"size": "m",
+				"w": 605.8125,
+				"text": "OnTrigger::run(\n  Action(Target::ENTITY, Damage)\n  Action(Target::ENTITY, Effect(\"ignite\"))\n);",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aC1Ex",
+			"typeName": "shape"
+		},
+		{
+			"x": -708.4668456382711,
+			"y": 1243.3866555340944,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:wVGJj7pYHYapORjrYM-Vp",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 116.203125,
+				"text": "Fireball",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aBe6J",
+			"typeName": "shape"
+		},
+		{
+			"x": -649.9076552191178,
+			"y": 1295.4230834474301,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:frNpAZuXNz--t0b2AyUh4",
+			"type": "text",
+			"props": {
+				"color": "yellow",
+				"size": "m",
+				"w": 260.203125,
+				"text": "Hooks::<OnTrigger>",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aD8SM",
+			"typeName": "shape"
+		},
+		{
+			"x": -362.4819350144296,
+			"y": 1312.5999193162368,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:-ammMMCluHhf0TYQbdOzE",
+			"type": "arrow",
+			"props": {
+				"dash": "draw",
+				"size": "m",
+				"fill": "none",
+				"color": "black",
+				"labelColor": "black",
+				"bend": 0,
+				"start": {
+					"x": 0,
+					"y": 0
+				},
+				"end": {
+					"x": 91.60979130029926,
+					"y": 0
+				},
+				"arrowheadStart": "none",
+				"arrowheadEnd": "arrow",
+				"text": "",
+				"labelPosition": 0.5,
+				"font": "mono",
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aE1RD",
+			"typeName": "shape"
+		},
+		{
+			"x": -239.9538391502797,
+			"y": 1294.2779610561772,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:L6iWAhjEUKJkCywOiAvPx",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 101.8125,
+				"text": "Child:1",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aF4jz",
+			"typeName": "shape"
+		},
+		{
+			"x": -162.08551654502548,
+			"y": 1335.502367141312,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:-D82wYbxKA95pDEPb8DnY",
+			"type": "text",
+			"props": {
+				"color": "light-green",
+				"size": "m",
+				"w": 231.40625,
+				"text": "Action::<Damage>",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aG0eW",
+			"typeName": "shape"
+		},
+		{
+			"x": -166.88058066457916,
+			"y": 1480.9329108305371,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:yqXpC206b2Jw8-2QPkBqD",
+			"type": "text",
+			"props": {
+				"color": "light-green",
+				"size": "m",
+				"w": 231.40625,
+				"text": "Action::<Effect>",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aH0vz",
+			"typeName": "shape"
+		},
+		{
+			"x": -244.74890326983336,
+			"y": 1439.7085047454023,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:vDytfLspal7Kgejut0IRr",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 101.8125,
+				"text": "Child:2",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aFjCp",
+			"typeName": "shape"
+		},
+		{
+			"x": 80.51161932960133,
+			"y": 1508.5794472430748,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:hBBiI00bqjI1okzjXc2EB",
+			"type": "arrow",
+			"props": {
+				"dash": "draw",
+				"size": "m",
+				"fill": "none",
+				"color": "yellow",
+				"labelColor": "black",
+				"bend": 0,
+				"start": {
+					"x": 0,
+					"y": 0
+				},
+				"end": {
+					"x": 151.15615564549353,
+					"y": 1.145122391253608
+				},
+				"arrowheadStart": "none",
+				"arrowheadEnd": "arrow",
+				"text": "Hook",
+				"labelPosition": 0.5,
+				"font": "mono",
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aI7Tj",
+			"typeName": "shape"
+		},
+		{
+			"x": 264.8763243214531,
+			"y": 1486.8221218092538,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:9zVT8JsO6LihF20c4oX8b",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 274.609375,
+				"text": "Spawn Effect Entity",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aJAag",
+			"typeName": "shape"
+		},
+		{
+			"x": 386.25929779434944,
+			"y": 1384.906228987671,
+			"rotation": 0,
+			"isLocked": false,
+			"opacity": 1,
+			"meta": {},
+			"id": "shape:s-xLNBZROwsv3I1gvNlKl",
+			"type": "text",
+			"props": {
+				"color": "black",
+				"size": "m",
+				"w": 231.40625,
+				"text": "\n*EffectRegistry*",
+				"font": "mono",
+				"textAlign": "start",
+				"autoSize": true,
+				"scale": 1
+			},
+			"parentId": "page:page",
+			"index": "aK6UJ",
 			"typeName": "shape"
 		}
 	]

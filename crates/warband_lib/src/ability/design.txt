@@ -1,0 +1,141 @@
+use bevy::prelude::*;
+
+
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2dBundle::default());
+
+    commands.spawn((
+        Name::new("Hey"),
+        AbilityType::Area,
+        AreaType::Circle,
+        Duration(2),        // Duration / Interval can be added to AbilityType::Area
+        Interval(0.5),
+        Radius(2),
+        Augments(
+            Augment("ignite")
+        )
+        Hook::<DeliveryHit>::do((
+            Action(Targets::CASTER, actions::Damage),
+        ))
+    ))
+
+}
+
+/// Actions take uses stats from "Parent", be it Ability, Augment or Effect.
+/// 
+/// Targets::POINT  -> Acts or Point / Attaches to Point. 
+/// Targets::RADIUS -> Queries Radius of "Parent", where center is other falg
+/// Targets::ENTITY -> Attaches to Entity
+/// Targets::CASTER -> Attaches to Caster
+
+/// Might want to reorg this as it should maybe also cover lingering effects
+/// With an on OnEnter/OnExit
+
+/// trait ActionInput {
+///    fn targets() -> Targets;
+///    fn delay() -> Delay;
+/// }
+
+
+/// How to handle AreaOfEffect spells?
+
+#[augment("add_ignite")]
+fn ignite_augment() -> impl Bundle {
+    (
+        Tooltip::new("Applies [effect:ignite] in [stat:Radius] around the target.")
+        Radius(2.0),
+        SoulGeneration(1.0),
+        Modifiers(
+            Mult::<Damage>(1.2) // Increase damage by 20%
+        )
+        Hook::<DeliveryEnd>::do((
+            Action(Targets::POINT | Targets::RADIUS, Effect("ignite"))
+        )),
+        Hook::<Killed>::do((
+            Action(Targets::CASTER, actions::AddSouls)
+        ))
+    )
+}
+
+#[effect("ignite")]
+fn ignite() -> impl Bundle {
+    (
+        Aura::DEBUFF,
+        Delay(2)       // Delayed
+        Duration(2.0), // If 0 == Instant
+        Interval(0.1), // If 0 == Instant
+        Damage(2.0),
+        Hook::<Created>::do((
+
+        ))
+        Hook::<Trigger>::do((
+            Action(Target::ENTITY, actions::Damage)
+        )),
+    )
+}
+
+
+
+#[derive(Event)]
+pub struct OnHit {
+}
+
+#[derive(Component)]
+pub enum EventTriggers<T: Event> {
+    parent_entity: Vec<Entity>,
+    _phantom: PhantomData<T>,
+}
+
+pub enum EventTrigger<B: Bundle> {
+    OnHit(B),
+    OnStop(B)
+}
+
+
+impl<B: Bundle> Component for EventTrigger<B> {
+    const STORAGE_TYPE: StorageType = StorageType::SparseSet;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(event_trigger_hook::<B>);
+    }
+}
+
+fn event_trigger_hook<B: Bundle>(
+    mut world: DeferredWorld<'_>,
+    entity: Entity,
+    _component_id: ComponentId,
+) {
+    // Component hooks can't perform structural changes, so we need to rely on commands.
+    world.commands().add(EventTriggerCommand {
+        parent_entity: entity,
+        _phantom: PhantomData::<B>,
+    });
+}
+
+struct EventTriggerCommand<B> {
+    parent_entity: Entity,
+    _phantom: PhantomData<B>,
+}
+
+impl<B: Bundle> Command for EventTriggerCommand<B> {
+    fn apply(self, world: &mut World) {
+        let Some(mut entity_mut) = world.get_entity_mut(self.parent_entity) else {
+            #[cfg(debug_assertions)]
+            panic!("Parent entity not found");
+
+            #[cfg(not(debug_assertions))]
+            return;
+        };
+
+        let Some(with_child_component) = entity_mut.take::<EventTrigger<B>>() else {
+            #[cfg(debug_assertions)]
+            panic!("WithChild component not found");
+
+            #[cfg(not(debug_assertions))]
+            return;
+        };
+
+        let child_entity = world.spawn(with_child_component.0).id();
+        world.entity_mut(self.parent_entity).add_child(child_entity);
+    }
+}
