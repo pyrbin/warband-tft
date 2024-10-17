@@ -1,11 +1,6 @@
 use bevy_mod_picking::prelude::*;
 
 use crate::{
-    ability::{
-        action::Action,
-        events::{HookableEvent, OnTrigger},
-        AbilityTarget, Targets,
-    },
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
@@ -17,12 +12,6 @@ use crate::{
 pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(AppState::InGame), setup);
     app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
-
-    {
-        let world = app.world_mut();
-        world.init_component::<AbilityTarget>();
-        world.init_component::<Action<AbilityTarget>>();
-    }
 }
 
 #[derive(Component)]
@@ -58,16 +47,16 @@ fn setup(
         Collider::cuboid(100.0, 0.1, 100.0),
     ));
 
-    commands.spawn((
-        Name::new("Test"),
-        OnTrigger::run((
-            Action(Targets::ENTITY, AbilityTarget::None),
-            Action(
-                Targets::ENTITY | Targets::CASTER,
-                AbilityTarget::Point(Vec2::ZERO),
-            ),
-        )),
-    ));
+    // commands.spawn((
+    //     Name::new("Test"),
+    //     OnTrigger::actions((
+    //         Action(Targets::ENTITY, AbilityTarget::None),
+    //         Action(
+    //             Targets::ENTITY | Targets::CASTER,
+    //             AbilityTarget::Point(Vec2::ZERO),
+    //         ),
+    //     )),
+    // ));
 
     commands
         .spawn((
