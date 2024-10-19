@@ -6,6 +6,7 @@ pub mod despawn;
 pub mod name;
 pub mod previous;
 pub mod required_component;
+pub mod spawn;
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(Owner);

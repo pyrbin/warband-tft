@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use enum_dispatch::enum_dispatch;
-
 use crate::prelude::*;
 
 #[derive(Reflect, Component, Clone, Default, Debug)]

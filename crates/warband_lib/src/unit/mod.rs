@@ -43,11 +43,11 @@ bitflags::bitflags! {
 }
 
 impl Allegiance {
-    pub fn is_enemy(&self, other: Self) -> bool {
+    pub const fn is_enemy(&self, other: Self) -> bool {
         !self.is_ally(other)
     }
 
-    pub fn is_ally(&self, other: Self) -> bool {
+    pub const fn is_ally(&self, other: Self) -> bool {
         self.intersects(other)
     }
 }

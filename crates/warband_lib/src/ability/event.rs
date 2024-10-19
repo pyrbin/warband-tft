@@ -12,7 +12,7 @@ use enum_dispatch::enum_dispatch;
 
 use super::AbilityTarget;
 
-pub(super) fn event_plugin<T: AbilityEventType + Into<AbilityEvent>>(app: &mut App) {
+pub(super) fn plugin<T: AbilityEventType + Into<AbilityEvent>>(app: &mut App) {
     app.observe(propagate::<T>);
 }
 
@@ -73,6 +73,7 @@ pub(crate) struct OnTrigger {
     pub(crate) caster: Entity,
     pub(crate) target: AbilityTarget,
     pub(crate) ability: Entity,
+    pub(crate) trigger: Entity,
 }
 
 impl AbilityEventType for OnTrigger {

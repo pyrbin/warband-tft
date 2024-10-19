@@ -1,0 +1,1 @@
+- bevy BoxedCondition (can maybe be used in conditional actions, see: https://github.com/liquidhelium/helium_framework)

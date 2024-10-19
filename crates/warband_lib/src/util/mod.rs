@@ -1,3 +1,4 @@
+pub mod ballistics_math;
 pub mod bevy_ext;
 pub mod math_ext;
 pub mod pipe;
@@ -25,6 +26,18 @@ macro_rules! single_mut {
                 #[cfg(debug_assertions)]
                 info!("no single result found");
                 return;
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! for_in_match {
+    ($iter:expr, $( $pattern:pat => $block:block ),*) => {
+        for item in $iter {
+            match item {
+                $( $pattern => $block, )*
+                _ => continue,
             }
         }
     };
