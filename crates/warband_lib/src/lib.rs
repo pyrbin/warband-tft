@@ -1,5 +1,7 @@
 #![feature(let_chains)]
 #![feature(if_let_guard)]
+#![feature(associated_type_defaults)]
+#![feature(trivial_bounds)]
 
 mod assets;
 #[cfg(feature = "dev")]
@@ -41,6 +43,7 @@ pub fn plugin(app: &mut App) {
         stats::plugin,
         ui::plugin,
         unit::plugin,
+        ability::plugin,
         #[cfg(feature = "dev")]
         dev::plugin,
     ));

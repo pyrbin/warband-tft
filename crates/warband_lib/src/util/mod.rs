@@ -37,6 +37,7 @@ macro_rules! for_in_match {
         for item in $iter {
             match item {
                 $( $pattern => $block, )*
+                #[allow(unreachable_patterns)]
                 _ => continue,
             }
         }

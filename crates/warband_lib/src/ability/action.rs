@@ -1,13 +1,16 @@
 use bevy::ecs::{system::SystemId, world::Command};
 
-use crate::prelude::*;
+use crate::{prelude::*, unit::combat::DamageEvent};
 
 use super::{
     event::{AbilityEvent, AbilityEventType},
     AbilityTarget,
 };
 
-pub(super) fn plugin<T: AbilityAction>(app: &mut App) {
+pub(super) fn plugin<T: AbilityAction<Data: GetTypeRegistration> + GetTypeRegistration>(
+    app: &mut App,
+) {
+    app_register_types!(T, Action<T>, ActionInput<T>);
     {
         let world = app.world_mut();
         world.init_component::<Action<T>>();
@@ -23,7 +26,7 @@ pub(super) fn action<T: AbilityAction>(
 ) {
     let entity = trigger.entity();
     let event = trigger.event();
-    let action = or_return!(action.get(entity));
+    let action = or_return_quiet!(action.get(entity));
 
     let targets = action.targets();
     let point = match event.target() {
@@ -41,32 +44,47 @@ pub(super) fn action<T: AbilityAction>(
             entity,
             target: AbilityTarget::Point(point),
             event: event.clone(),
+            data: action.action().clone().into(),
         }));
     }
 
     if targets.contains(Targets::ENTITY)
-        && let AbilityTarget::Entity(entity) = event.target()
+        && let AbilityTarget::Entity(target) = event.target()
     {
-        commands.add(AbilityActionCommand::<T>::new(ActionInput {
+        commands.add(AbilityActionCommand::<T>::new(ActionInput::<T> {
             entity,
-            target: AbilityTarget::Entity(entity),
+            target: AbilityTarget::Entity(target),
             event: event.clone(),
+            data: action.action().clone().into(),
         }));
     }
 
     if targets.contains(Targets::CASTER) {
-        commands.add(AbilityActionCommand::<T>::new(ActionInput {
+        commands.add(AbilityActionCommand::<T>::new(ActionInput::<T> {
             entity,
             target: AbilityTarget::Entity(event.caster()),
             event: event.clone(),
+            data: action.action().clone().into(),
         }));
     }
 
     // TODO: trigger many (radius)
 }
 
-pub(crate) trait AbilityAction: Clone + Send + Sync + 'static {
+pub(crate) trait AbilityAction:
+    Reflect + FromReflect + GetTypeRegistration + TypePath + Clone + Send + Sync + 'static
+{
     type Provider: ActionSystemIdProvider<Self> + FromWorld;
+    type Data: Reflect
+        + From<Self>
+        + FromReflect
+        + GetTypeRegistration
+        + TypePath
+        + Default
+        + Clone
+        + Send
+        + Sync
+        + 'static;
 }
 
 bitflags::bitflags! {
@@ -79,7 +97,21 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component)]
+pub(crate) enum Prop<T: Component> {
+    Ability,
+    #[default]
+    Parent,
+    Caster,
+    Target,
+    This,
+    /// !!! should not be used.
+    _Marker(#[reflect(ignore)] PhantomData<T>),
+}
+
+#[derive(Component, Clone, Reflect)]
+#[reflect(Component)]
 pub(crate) struct Action<T: AbilityAction>(pub(crate) Targets, pub(crate) T);
 
 impl<T: AbilityAction> Action<T> {
@@ -92,39 +124,36 @@ impl<T: AbilityAction> Action<T> {
     }
 }
 
-pub(crate) struct ActionInput {
+#[derive(Clone, Reflect)]
+pub(crate) struct ActionInput<T: AbilityAction> {
     pub(crate) entity: Entity,
     pub(crate) target: AbilityTarget,
     pub(crate) event: AbilityEvent,
+    pub(crate) data: T::Data,
 }
 
 pub trait ActionSystemIdProvider<T: AbilityAction>: Resource + Send + Sync + 'static {
-    fn id(&self) -> SystemId<ActionInput>;
+    fn id(&self) -> SystemId<ActionInput<T>>;
 }
 
 #[derive(Resource)]
 pub struct ActionSystemId<T: AbilityAction> {
-    id: SystemId<ActionInput>,
-    _marker: std::marker::PhantomData<T>,
+    id: SystemId<ActionInput<T>>,
 }
 
 impl<T: AbilityAction> ActionSystemIdProvider<T> for ActionSystemId<T> {
-    fn id(&self) -> SystemId<ActionInput> {
+    fn id(&self) -> SystemId<ActionInput<T>> {
         self.id
     }
 }
 
 pub struct AbilityActionCommand<T: AbilityAction> {
-    input: ActionInput,
-    _marker: PhantomData<T>,
+    input: ActionInput<T>,
 }
 
 impl<T: AbilityAction> AbilityActionCommand<T> {
-    pub(crate) fn new(input: ActionInput) -> Self {
-        Self {
-            input,
-            _marker: PhantomData,
-        }
+    pub(crate) fn new(input: ActionInput<T>) -> Self {
+        Self { input }
     }
 }
 
@@ -146,22 +175,31 @@ impl<T: AbilityAction> Command for AbilityActionCommand<T> {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct Damage;
-
-// TODO: proc-macro
-
-impl AbilityAction for Damage {
-    type Provider = ActionSystemId<Damage>;
+#[derive(AbilityAction, Clone, Default, Reflect)]
+#[action(damage)]
+pub(crate) struct Damage<T: Stat + Component + GetTypeRegistration> {
+    pub(crate) amount: Prop<T>,
+    pub(crate) scale: f32,
+    pub(crate) can_crit: bool, // demo
 }
 
-impl FromWorld for ActionSystemId<Damage> {
-    fn from_world(world: &mut World) -> Self {
-        Self {
-            id: world.register_system(damage),
-            _marker: PhantomData,
-        }
+fn damage<T: Stat + Component + GetTypeRegistration>(
+    input: In<ActionInput<Damage<T>>>,
+    mut damage_event: EventWriter<crate::unit::combat::DamageEvent>,
+) {
+    if let AbilityTarget::Entity(entity) = input.target {
+        damage_event.send(DamageEvent {
+            target: entity,
+            source: input.event.ability(),
+            damage: input.data.amount.value() * input.data.scale,
+        });
     }
 }
 
-fn damage(event: In<ActionInput>) {}
+#[derive(AbilityAction, Clone, Default, Reflect)]
+#[action(log)]
+pub(crate) struct Log;
+
+fn log(event: In<ActionInput<Log>>) {
+    println!("log :)");
+}

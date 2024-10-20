@@ -32,7 +32,7 @@ pub struct Pool<S: Stat + Component> {
 }
 
 #[allow(unused)]
-impl<'w, S: Stat + Component> PoolReadOnlyItem<'w, S> {
+impl<S: Stat + Component> PoolReadOnlyItem<'_, S> {
     pub fn total(&self) -> f32 {
         self.total.value()
     }
@@ -48,7 +48,7 @@ impl<'w, S: Stat + Component> PoolReadOnlyItem<'w, S> {
 }
 
 #[allow(unused)]
-impl<'w, S: Stat + Component> PoolItem<'w, S> {
+impl<S: Stat + Component> PoolItem<'_, S> {
     pub fn total(&self) -> f32 {
         self.total.value()
     }
@@ -72,21 +72,21 @@ impl<'w, S: Stat + Component> PoolItem<'w, S> {
     }
 }
 
-impl<'w, S: Stat + Component> AddAssign<f32> for PoolItem<'w, S> {
+impl<S: Stat + Component> AddAssign<f32> for PoolItem<'_, S> {
     #[inline]
     fn add_assign(&mut self, rhs: f32) {
         self.set_current(self.current() + rhs);
     }
 }
 
-impl<'w, S: Stat + Component> SubAssign<f32> for PoolItem<'w, S> {
+impl<S: Stat + Component> SubAssign<f32> for PoolItem<'_, S> {
     #[inline]
     fn sub_assign(&mut self, rhs: f32) {
         self.add_assign(rhs * -1.0);
     }
 }
 
-impl<'w, S: Stat + Component> MulAssign<f32> for PoolItem<'w, S> {
+impl<S: Stat + Component> MulAssign<f32> for PoolItem<'_, S> {
     #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         self.set_current(self.current() * rhs);

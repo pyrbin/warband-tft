@@ -11,4 +11,5 @@ pub(super) fn plugin(app: &mut App) {
 pub(crate) enum Layer {
     Units,
     Terrain,
+    Projectile,
 }

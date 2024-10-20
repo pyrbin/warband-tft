@@ -1,7 +1,10 @@
 #![feature(concat_idents)]
+
+mod ability;
 mod bevy;
-mod spell;
+mod spawner;
 mod stat;
+mod util;
 
 pub(crate) const CRATE_IDENT: &str = "warband_lib";
 
@@ -25,13 +28,18 @@ pub fn stat_derive(input: TokenStream) -> TokenStream {
     crate::stat::impl_stat_derive(&ast)
 }
 
-#[proc_macro_attribute]
-pub fn spell_effect(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as syn::ItemImpl);
-    crate::spell::impl_spell_effect(&ast)
+/// Derive macro generating an impl of the trait `AbilityAction`.
+#[proc_macro_error]
+#[proc_macro_derive(AbilityAction, attributes(action))]
+pub fn ability_action_derive(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    crate::ability::impl_ability_action_derive(&ast)
 }
 
+/// Macro to specify a spawner.
 #[proc_macro_attribute]
-pub fn on(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    item
+pub fn spawner(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let item_fn = parse_macro_input!(input as syn::ItemFn);
+    let spawner_ty = parse_macro_input!(attr as syn::Path);
+    crate::spawner::impl_spawner(&spawner_ty, &item_fn)
 }

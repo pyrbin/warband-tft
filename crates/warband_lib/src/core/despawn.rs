@@ -28,12 +28,12 @@ pub(super) fn plugin(app: &mut App) {
 #[reflect(Component)]
 #[component(storage = "SparseSet")]
 pub enum Despawn {
-    // Despawn immediately.
+    /// Despawn immediately.
     #[default]
     Immediate,
-    // Despawn after a delay in seconds.
+    /// Despawn after a delay in seconds.
     Delay(f32),
-    // Despawn after a delay in frames.
+    /// Despawn after a delay in frames.
     WaitFrames(u32),
 }
 

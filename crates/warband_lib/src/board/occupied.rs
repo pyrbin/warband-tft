@@ -110,7 +110,7 @@ trait InnerGetPolygon {
     ) -> Vec<Vec2>;
 }
 
-impl<'a> InnerGetPolygon for TypedShape<'a> {
+impl InnerGetPolygon for TypedShape<'_> {
     fn get_polygon(
         &self,
         obstacle: &GlobalTransform,

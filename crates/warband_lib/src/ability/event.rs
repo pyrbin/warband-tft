@@ -12,7 +12,12 @@ use enum_dispatch::enum_dispatch;
 
 use super::AbilityTarget;
 
-pub(super) fn plugin<T: AbilityEventType + Into<AbilityEvent>>(app: &mut App) {
+pub(super) fn plugin<T: AbilityEventType>(app: &mut App)
+where
+    T: Into<AbilityEvent>,
+{
+    app_register_types!(T, Actions<T>);
+
     app.observe(propagate::<T>);
 }
 
@@ -28,7 +33,7 @@ pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
         return;
     }
 
-    let action = or_return!(ability.get(entity));
+    let action = or_return_quiet!(ability.get(entity));
     for entity in action.iter() {
         let event: AbilityEvent = event.clone().into();
         commands.trigger_targets(event, *entity);
@@ -43,7 +48,9 @@ pub(crate) enum AbilityEvent {
 }
 
 #[enum_dispatch]
-pub(crate) trait AbilityEventType: Event + Clone + Send + Sync + 'static {
+pub(crate) trait AbilityEventType:
+    Event + Reflect + FromReflect + TypePath + GetTypeRegistration + Clone + Send + Sync + 'static
+{
     fn ability(&self) -> Entity;
     fn caster(&self) -> Entity;
     fn target(&self) -> AbilityTarget;
@@ -98,6 +105,7 @@ impl<T: AbilityEventType> AsAbilityEventHook for T {
     }
 }
 
+// TODO: impl & use AbilityActionBundle so only Actions(T) can be added
 pub(crate) struct AbilityEventHook<T: AbilityEventType, B: Bundle> {
     _marker: std::marker::PhantomData<(T, B)>,
     pub(crate) actions: B,
@@ -166,9 +174,11 @@ impl<T: AbilityEventType, B: Bundle> Command for InitAbilityEventHookCommand<T, 
         trigger.actions.get_components(&mut |_, component_ptr| {
             let component_id = component_ids[bundle_component];
 
+            // SAFETY: if component has been initialized, is the case for any [AbilityAction]
             unsafe {
                 let child_entity = world
                     .spawn_empty()
+                    .insert(Name::new("action"))
                     .insert_by_id(component_id, component_ptr)
                     .id();
 
@@ -187,9 +197,11 @@ impl<T: AbilityEventType, B: Bundle> Command for InitAbilityEventHookCommand<T, 
 }
 
 #[derive(Component, Reflect)]
+#[reflect(Component)]
 pub(crate) struct Actions<T: AbilityEventType> {
-    _marker: std::marker::PhantomData<T>,
     pub(crate) hooks: SmallVec<[Entity; 8]>,
+    #[reflect(ignore)]
+    _marker: std::marker::PhantomData<T>,
 }
 
 impl<T: AbilityEventType> Deref for Actions<T> {

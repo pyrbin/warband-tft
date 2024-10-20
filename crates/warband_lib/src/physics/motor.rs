@@ -64,7 +64,10 @@ impl CharacterMotorBundle {
             gravity: GravityScale(1.0),
             max_slope_angle: MaxSlopeAngle(f32::consts::FRAC_PI_2),
             damping_factor: DampingFactor(0.9),
-            collision_layers: CollisionLayers::new([Layer::Units], [Layer::Terrain]),
+            collision_layers: CollisionLayers::new(
+                [Layer::Units],
+                [Layer::Terrain, Layer::Projectile],
+            ),
         }
     }
 }

@@ -2,20 +2,21 @@ use crate::prelude::*;
 
 use super::{event, AbilityTarget};
 
-#[derive(Event)]
+#[derive(Event, Reflect)]
 pub struct TryAbility {
     pub caster: Entity,
     pub ability: Entity,
     pub target: AbilityTarget,
 }
 
-#[derive(Event)]
+#[derive(Event, Reflect)]
 pub struct CastAbility {
     pub caster: Entity,
     pub ability: Entity,
     pub target: AbilityTarget,
 }
 
+// TODO: convert to command
 pub(super) fn try_ability(
     mut events: EventReader<TryAbility>,
     mut cast_ability: EventWriter<CastAbility>,

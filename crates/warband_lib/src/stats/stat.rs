@@ -57,7 +57,19 @@ where
     pool::PoolBundle::new(stat.value())
 }
 
-pub trait Stat: Reflect + TypePath + Default + Sync + Send + Sized + Copy + 'static {
+pub trait Stat:
+    Reflect
+    + FromReflect
+    + GetTypeRegistration
+    + Clone
+    + TypePath
+    + Default
+    + Sync
+    + Send
+    + Sized
+    + Copy
+    + 'static
+{
     /// Creates a new [Stat] with the given value.
     fn new(value: f32) -> Self;
 

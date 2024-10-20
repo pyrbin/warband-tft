@@ -1,8 +1,8 @@
-use ballistics_math::solve_ballistic_arc;
+use ballistics_math::aim_projectile_straight_fallback;
 use bevy::ecs::entity::EntityHashSet;
-use spawn::SpawnSystemId;
 
 use crate::{
+    physics,
     prelude::*,
     unit::{Allegiance, Unit},
 };
@@ -10,9 +10,17 @@ use crate::{
 use super::Speed;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_event::<ProjectileEvent>();
+    app_register_types!(
+        Projectile,
+        ProjectileType,
+        EntitiesHit,
+        AllegianceFilter,
+        ProjectileTarget,
+        ProjectileEvent
+    );
 
-    app.add_systems(Update, gravity);
+    app.add_event::<ProjectileEvent>();
+    app.add_systems(Update, (trajectory, collisions));
 }
 
 #[derive(Bundle, Default)]
@@ -28,7 +36,7 @@ pub(crate) struct ProjectileBundle {
     pub speed: Speed,
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub(crate) struct Projectile;
 
 #[derive(Reflect, Component, Clone, Debug, Default)]
@@ -39,13 +47,10 @@ pub(crate) enum ProjectileType {
     Tracking,
 }
 
-#[derive(Component)]
-pub(crate) struct AbilityTriggerEmitter(pub Entity);
-
-#[derive(Component, Default, Deref, DerefMut)]
+#[derive(Component, Default, Deref, DerefMut, Reflect)]
 pub(crate) struct EntitiesHit(pub EntityHashSet);
 
-#[derive(Component, Default, DerefMut, Deref, From)]
+#[derive(Component, Reflect, Default, DerefMut, Deref, From)]
 pub(crate) struct AllegianceFilter(Allegiance);
 
 #[derive(Reflect, Component, Clone, Debug)]
@@ -60,7 +65,7 @@ impl Default for ProjectileTarget {
     }
 }
 
-#[derive(Event, Debug, Clone)]
+#[derive(Event, Reflect, Debug, Clone)]
 pub(crate) enum ProjectileEvent {
     Spawned { projectile: Entity },
     Hit { projectile: Entity, target: Entity },
@@ -76,21 +81,15 @@ pub(crate) struct TrackingProjectile {
     pub(crate) origin: Vec3,
 }
 
-// TODO: proc-macro
-impl FromWorld for SpawnSystemId<TrackingProjectile> {
-    fn from_world(world: &mut World) -> Self {
-        Self {
-            id: world.register_system(spawn_tracking),
-        }
-    }
-}
-
+#[spawner(TrackingProjectile)]
 fn spawn_tracking(
     In((id, args)): In<(Entity, TrackingProjectile)>,
     mut commands: Commands,
+    mut projectile_events: EventWriter<ProjectileEvent>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     transforms: Query<&GlobalTransform>,
     gravity: Res<Gravity>,
-    time: Res<Time>,
 ) {
     let TrackingProjectile {
         projectile_target,
@@ -106,22 +105,7 @@ fn spawn_tracking(
         ProjectileTarget::Point(point) => point,
     };
 
-    let gravity = gravity.0.y * time.delta_seconds();
-    let result = solve_ballistic_arc(origin, speed, target, gravity);
-
-    let velocity = match result {
-        Some((s0, s1)) => {
-            if s0.y > s1.y {
-                s0
-            } else {
-                s1
-            }
-        }
-        None => {
-            error!("failed to solve ballistic arc");
-            return;
-        }
-    };
+    let velocity = aim_projectile_straight_fallback(target - origin, Vec3::ZERO, speed, gravity.0);
 
     commands
         .entity(id)
@@ -131,20 +115,69 @@ fn spawn_tracking(
             projectile_target,
             collider: Collider::sphere(radius),
             velocity: LinearVelocity(velocity),
+            speed: Speed(speed),
+            collision_layers: CollisionLayers::new(
+                [physics::Layer::Projectile],
+                [physics::Layer::Units],
+            ),
             ..default()
         })
-        .insert((RigidBody::Kinematic, AllegianceFilter(filter)));
+        .insert((
+            RigidBody::Kinematic,
+            AllegianceFilter(filter),
+            Despawn::Delay(30.0),
+        ))
+        .insert(PbrBundle {
+            mesh: meshes.add(Sphere::new(radius)),
+            material: materials.add(Color::srgb_u8(124, 144, 255)),
+            transform: Transform::from_translation(origin),
+            ..default()
+        });
+
+    projectile_events.send(ProjectileEvent::Spawned { projectile: id });
 }
 
-fn gravity(
+fn trajectory(
     time: Res<Time>,
-    mut motors: Query<(Option<&GravityScale>, &mut LinearVelocity), With<Projectile>>,
+    mut projectiles: Query<
+        (
+            &ProjectileType,
+            Option<&GravityScale>,
+            &mut LinearVelocity,
+            &mut Transform,
+            &ProjectileTarget,
+            &Speed,
+        ),
+        With<Projectile>,
+    >,
+    transforms: Query<(&GlobalTransform, Option<&LinearVelocity>), Without<Projectile>>,
     gravity: Res<Gravity>,
 ) {
     let delta_time = time.delta_seconds();
-    for (gravity_scale, mut linear_velocity) in &mut motors {
+    for (
+        projectile_type,
+        gravity_scale,
+        mut linear_velocity,
+        transform,
+        projectile_target,
+        speed,
+    ) in &mut projectiles
+    {
         let scale = gravity_scale.map(|s| s.0).unwrap_or(1.0);
         linear_velocity.0 += gravity.0 * scale * delta_time;
+
+        if let ProjectileTarget::Entity(entity) = projectile_target
+            && matches!(projectile_type, ProjectileType::Tracking)
+        {
+            let (target_transform, target_vel) = or_return!(transforms.get(*entity));
+            let projectile_translation = transform.translation;
+            linear_velocity.0 = aim_projectile_straight_fallback(
+                target_transform.translation() - projectile_translation,
+                target_vel.map(|v| v.0).unwrap_or_default() - linear_velocity.0,
+                speed.value(),
+                gravity.0,
+            );
+        }
     }
 }
 
@@ -159,7 +192,7 @@ fn collisions(
             &mut EntitiesHit,
             &ProjectileTarget,
         ),
-        (With<Projectile>, Without<Despawn>),
+        (With<Projectile>, Without<Disabled<Projectile>>),
     >,
     units: Query<(Entity, &Allegiance), With<Unit>>,
 ) {
@@ -185,7 +218,10 @@ fn collisions(
             && unit == *target
         {
             projectile_events.send(ProjectileEvent::Destroyed { projectile });
-            commands.entity(projectile).insert(Despawn::WaitFrames(2));
+            commands
+                .entity(projectile)
+                .insert(Despawn::WaitFrames(2))
+                .insert(Disabled::<Projectile>::default());
         }
 
         entities_hit.insert(unit);
@@ -199,51 +235,13 @@ fn collisions(
     }
 }
 
-fn tracking_trajectory(
-    mut projectile: Query<
-        (
-            &ProjectileType,
-            &ProjectileTarget,
-            &mut LinearVelocity,
-            &Transform,
-            &Speed,
-        ),
-        With<ProjectileType>,
-    >,
-    transforms: Query<&GlobalTransform>,
-    gravity: Res<Gravity>,
-    time: Res<Time>,
-) {
-    let gravity = gravity.0.y * time.delta_seconds();
-
-    for (projectile_type, projectile_target, mut linvel, transform, speed) in &mut projectile {
-        if !matches!(projectile_type, ProjectileType::Tracking) {
-            return;
+#[cfg(feature = "dev")]
+pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<(&ProjectileTarget, &GlobalTransform)>) {
+    use bevy::color::palettes::css::LIGHT_CYAN;
+    for (target, transform) in &entities {
+        if let ProjectileTarget::Point(point) = target {
+            gizmos.line(transform.translation(), *point, LIGHT_CYAN);
+            gizmos.sphere(*point, Quat::IDENTITY, 0.1, LIGHT_CYAN);
         }
-
-        let target = match projectile_target {
-            ProjectileTarget::Entity(entity) => {
-                or_return!(global_translation(&transforms, *entity))
-            }
-            ProjectileTarget::Point(point) => *point,
-        };
-
-        let position = transform.translation;
-        let result = solve_ballistic_arc(position, speed.value(), target, gravity);
-        let velocity = match result {
-            Some((s0, s1)) => {
-                if s0.y > s1.y {
-                    s0
-                } else {
-                    s1
-                }
-            }
-            None => {
-                error!("failed to solve ballistic arc");
-                return;
-            }
-        };
-
-        linvel.0 = velocity;
     }
 }

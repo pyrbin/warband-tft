@@ -1,6 +1,7 @@
 use bevy_mod_picking::prelude::*;
 
 use crate::{
+    ability::{self, cast::TryAbility, Caster},
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
@@ -11,7 +12,10 @@ use crate::{
 
 pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(AppState::InGame), setup);
-    app.add_systems(Update, test_target.run_if(in_state(AppState::InGame)));
+    app.add_systems(
+        Update,
+        (test_target, test_cast).run_if(in_state(AppState::InGame)),
+    );
 }
 
 #[derive(Component)]
@@ -37,28 +41,35 @@ fn setup(
         Cleanup(OnExit(AppState::InGame)),
     ));
 
+    let _ = commands
+        .spawn((
+            Name::unit("floor"),
+            SpatialBundle {
+                transform: Transform::from_translation(Vec3::Y * -0.05),
+                ..default()
+            },
+            RigidBody::Static,
+            Collider::cuboid(100.0, 0.1, 100.0),
+        ))
+        .id();
+
+    let caster = commands
+        .spawn((
+            Name::unit("caster"),
+            SpatialBundle {
+                transform: Transform::from_translation(Vec3::Y),
+                ..default()
+            },
+        ))
+        .id();
+
     commands.spawn((
-        Name::unit("floor"),
-        SpatialBundle {
-            transform: Transform::from_translation(Vec3::Y * -0.05),
-            ..default()
-        },
-        RigidBody::Static,
-        Collider::cuboid(100.0, 0.1, 100.0),
+        Name::new("Example Spell"),
+        ability::example(),
+        Caster(caster),
     ));
 
-    // commands.spawn((
-    //     Name::new("Test"),
-    //     OnTrigger::actions((
-    //         Action(Targets::ENTITY, AbilityTarget::None),
-    //         Action(
-    //             Targets::ENTITY | Targets::CASTER,
-    //             AbilityTarget::Point(Vec2::ZERO),
-    //         ),
-    //     )),
-    // ));
-
-    commands
+    let _ = commands
         .spawn((
             Name::unit("Target"),
             PbrBundle {
@@ -73,6 +84,12 @@ fn setup(
             unit::Allegiance::TEAM_2,
             unit::stats::Health::pool(999.0),
             MoveTo,
+            (
+                agent::Agent::default(),
+                agent::DestinationRange(1),
+                motor::CharacterMotorBundle::new(0.5, 0.5),
+                path::Destination::None,
+            ),
         ))
         .id();
 
@@ -111,6 +128,28 @@ fn setup(
             unit::Unit,
             unit::stats::Health::pool(100.0),
         ));
+    }
+}
+
+fn test_cast(
+    buttons: Res<ButtonInput<KeyCode>>,
+    query: Query<(Entity, &mut ability::Caster, &ability::AbilityId)>,
+    mut events: EventWriter<TryAbility>,
+    target: Query<Entity, With<MoveTo>>,
+    mut caster: Query<&mut Transform>,
+) {
+    let ability = single!(query);
+    let target = single!(target);
+    if buttons.just_pressed(KeyCode::Space) {
+        let mut transform = or_return!(caster.get_mut(**ability.1));
+        // random Vec3 with y being between 2 and 10.
+        let position = Vec3::ZERO + Vec3::Y * (rand::random::<f32>() * 10.0);
+        transform.translation = position;
+        events.send(TryAbility {
+            caster: **ability.1,
+            ability: ability.0,
+            target: ability::AbilityTarget::Entity(target),
+        });
     }
 }
 

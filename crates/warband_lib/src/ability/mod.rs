@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 
-use event::{AbilityEventType, OnCast, OnTrigger};
+use action::{Action, Targets};
+use cast::{cast_ability, try_ability, CastAbility, TryAbility};
+use enumflags2::BitFlags;
+use event::{AbilityEventType, AsAbilityEventHook, OnCast, OnTrigger};
 use projectile::{ProjectileEvent, ProjectileTarget, ProjectileType, TrackingProjectile};
 use spawn::SpawnExtensions;
 
@@ -11,7 +14,13 @@ pub mod effect;
 pub mod event;
 pub mod projectile;
 
-use crate::{for_in_match, prelude::*, unit::Allegiance};
+use crate::{
+    for_in_match,
+    prelude::*,
+    register_stats,
+    stats::stat,
+    unit::{stats::Health, Allegiance},
+};
 
 // TODO:
 // - Ability Registration #[ability([id])]
@@ -19,9 +28,57 @@ use crate::{for_in_match, prelude::*, unit::Allegiance};
 // - Effect Lifecycle
 // - Area Delivery Trigger
 
+pub(super) fn example() -> impl Bundle {
+    (
+        AbilityId("example".into()),
+        AbilityType::Projectile,
+        ProjectileType::Tracking,
+        Element::FIRE,
+        TargetTeam::HOSTILE,
+        OnTrigger::actions(Action(
+            Targets::ENTITY,
+            action::Damage::<Health> {
+                amount: action::Prop::Target,
+                scale: 0.2,
+                can_crit: true,
+            },
+        )),
+        Speed(4.0),
+        Radius(0.5),
+        Damage(10.0),
+    )
+}
+
 pub(super) fn plugin(app: &mut App) {
+    app_register_types!(
+        AbilityId,
+        AbilityType,
+        AbilityTarget,
+        Element,
+        TargetTeam,
+        FromAbility,
+        Caster,
+        TryAbility,
+        CastAbility
+    );
+
+    register_stats!(app, Interval, Duration, Radius, Speed);
+
+    app.add_event::<TryAbility>();
+    app.add_event::<CastAbility>();
+
+    app.add_plugins(projectile::plugin);
     app.add_plugins((event::plugin::<OnCast>, event::plugin::<OnTrigger>));
-    app.add_plugins(action::plugin::<action::Damage>);
+
+    app.add_plugins((
+        action::plugin::<action::Damage<Health>>,
+        action::plugin::<action::Log>,
+    ));
+
+    app.add_systems(Update, (try_ability, cast_ability));
+
+    app.add_systems(Update, projectile_events);
+    app.observe(cast);
 }
 
 #[derive(Reflect, Component, Clone, Default, Debug)]
@@ -79,6 +136,10 @@ pub(crate) struct Radius(pub(crate) f32);
 #[clamp(min = 0)]
 pub(crate) struct Speed(pub(crate) f32);
 
+#[derive(Stat, Component, Default, Reflect, Copy, Clone)]
+#[clamp(min = 0)]
+pub(crate) struct Damage(pub(crate) f32);
+
 #[derive(Reflect, Component, Clone, Debug, Deref, DerefMut, From)]
 #[reflect(Component, Debug)]
 pub(crate) struct FromAbility(pub(crate) Entity);
@@ -86,6 +147,26 @@ pub(crate) struct FromAbility(pub(crate) Entity);
 #[derive(Reflect, Component, Clone, Debug, Deref, DerefMut, From)]
 #[reflect(Component, Debug)]
 pub(crate) struct Caster(pub(crate) Entity);
+
+#[enumflags2::bitflags]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect)]
+#[reflect(PartialEq)]
+#[repr(u8)]
+pub(crate) enum Tags {
+    Fire = 0b0001,
+    Frost,
+    Earth,
+    Storm,
+    Projectile,
+    AreaOfEffect,
+    Dot,
+}
+
+#[derive(Default, Component)]
+pub(crate) struct OwnedTags(BitFlags<Tags>);
+
+#[derive(Default, Component)]
+pub(crate) struct RequiredTags(BitFlags<Tags>);
 
 type AbilityArguments = (
     Option<&'static Speed>,
@@ -96,7 +177,11 @@ type AbilityArguments = (
     Option<&'static Interval>,
 );
 
-type ProjectileArguments = (&'static ProjectileType, &'static Speed, &'static Radius);
+type ProjectileArguments = (
+    Option<&'static ProjectileType>,
+    Option<&'static Speed>,
+    Option<&'static Radius>,
+);
 
 fn cast(
     trigger: Trigger<event::OnCast>,
@@ -126,6 +211,10 @@ fn cast(
             let projectile_args = lens.query();
             let (projecile_type, speed, radius) = or_return!(projectile_args.get(entity));
 
+            let projecile_type = or_return!(projecile_type);
+            let speed = or_return!(speed);
+            let radius = or_return!(radius);
+
             commands
                 .spawn_from(TrackingProjectile {
                     projectile_target,
@@ -135,7 +224,7 @@ fn cast(
                     speed: speed.value(),
                     origin: caster_position,
                 })
-                .insert(FromAbility(entity));
+                .insert((FromAbility(entity), Name::projectile("example spell")));
         }
     }
 }

@@ -54,7 +54,7 @@ pub trait SpawnExtensions<I, O> {
     fn spawn_from(&mut self, input: I) -> EntityCommands;
 }
 
-impl<'w, 's, I, O> SpawnExtensions<I, O> for Commands<'w, 's>
+impl<I, O> SpawnExtensions<I, O> for Commands<'_, '_>
 where
     I: Send + 'static,
     O: Send + 'static,

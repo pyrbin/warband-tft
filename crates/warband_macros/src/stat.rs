@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
-use syn::{DeriveInput, Expr, ExprLit, Fields, Lit, Path};
+use syn::{DeriveInput, Expr, ExprLit, Fields, Lit};
 
 pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
     let crate_ident = match crate_name(CRATE_IDENT)
@@ -100,7 +100,7 @@ fn extract_clamp_and_round_functions(
         if attr.path().is_ident("clamp") {
             clamp_fn = Some(extract_clamp(attr));
         } else if attr.path().is_ident("round") {
-            round_fn = extract_function_from_attr(attr);
+            round_fn = crate::util::ident_from_attr(attr);
         }
     }
 
@@ -171,10 +171,4 @@ fn extract_clamp(attr: &syn::Attribute) -> proc_macro2::TokenStream {
         ),
         _ => quote!(),
     }
-}
-
-fn extract_function_from_attr(attr: &syn::Attribute) -> Option<Ident> {
-    attr.parse_args::<Path>()
-        .ok()
-        .and_then(|path| path.get_ident().cloned())
 }

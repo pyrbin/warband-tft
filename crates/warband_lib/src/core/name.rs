@@ -19,4 +19,4 @@ macro_rules! implement_name_tags {
     };
 }
 
-implement_name_tags!(ui, unit, camera, light);
+implement_name_tags!(ui, unit, camera, light, projectile);

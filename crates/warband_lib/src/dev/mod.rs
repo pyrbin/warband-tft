@@ -24,7 +24,7 @@ pub(super) fn plugin(app: &mut App) {
             ..default()
         },
         GizmoConfig {
-            enabled: false,
+            enabled: true,
             ..default()
         },
     )
@@ -53,6 +53,7 @@ pub(super) fn plugin(app: &mut App) {
             crate::board::gizmos,
             crate::navigation::path::gizmos,
             crate::navigation::agent::gizmos,
+            crate::ability::projectile::gizmos,
         )
             .chain(),
     );

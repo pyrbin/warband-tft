@@ -84,7 +84,7 @@ fn seek(
             mut pathing,
             mut destination_range,
             destination_reached,
-        ) = or_continue!(units.get_mut(*actor));
+        ) = or_continue_quiet!(units.get_mut(*actor));
 
         let allegiance = or_continue!(unit_allegiance.get(*actor));
         let position = transform.translation;
