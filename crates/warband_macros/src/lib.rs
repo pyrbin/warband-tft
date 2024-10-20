@@ -30,7 +30,7 @@ pub fn stat_derive(input: TokenStream) -> TokenStream {
 
 /// Derive macro generating an impl of the trait `AbilityAction`.
 #[proc_macro_error]
-#[proc_macro_derive(AbilityAction, attributes(action))]
+#[proc_macro_derive(AbilityAction, attributes(ability_action))]
 pub fn ability_action_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     crate::ability::impl_ability_action_derive(&ast)

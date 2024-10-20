@@ -6,7 +6,7 @@ use quote::quote;
 use syn::{Data, DeriveInput, Ident, PathArguments, Type};
 
 pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
-    const ACTION_ATTRIBUTE_IDENT: &str = "action";
+    const ACTION_ATTRIBUTE_IDENT: &str = "ability_action";
     const ACTION_PROP_TYPE_IDENT: &str = "Prop";
 
     let name = &ast.ident;
@@ -39,6 +39,8 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
 
     let mut prop_fields = Vec::new();
     let mut non_prop_fields = Vec::new();
+
+    // TODO: support tuple structs
     for field in fields.iter() {
         if let Type::Path(type_path) = &field.ty {
             if let Some(segment) = type_path.path.segments.first() {
@@ -46,13 +48,18 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
                 if segment.ident == ACTION_PROP_TYPE_IDENT {
                     if let PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(syn::GenericArgument::Type(arg_type)) = args.args.first() {
-                            let ident =
-                                field.ident.clone().expect("prop should have an identifier");
+                            let ident = field
+                                .ident
+                                .clone()
+                                .expect("field should have an identifier, tuples are not supports");
                             prop_fields.push((ident, arg_type.clone()));
                         }
                     }
                 } else {
-                    let ident = field.ident.clone().expect("should have an identifier");
+                    let ident = field
+                        .ident
+                        .clone()
+                        .expect("field should have an identifier, tuples are not supports");
                     let ty = &field.ty;
                     non_prop_fields.push((ident, ty.clone()));
                 }
@@ -60,7 +67,8 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
         }
     }
 
-    let action_fn_name = action_fn_name.expect("no action system found");
+    let action_fn_name =
+        action_fn_name.expect("no action system found, usage: #[ability_action({system})]");
     let action_data_name = Ident::new(&format!("{name}ActionData"), Span::call_site());
     let action_fn_data_name =
         Ident::new(&format!("{action_fn_name}_extract_data"), Span::call_site());

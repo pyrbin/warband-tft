@@ -95,6 +95,7 @@ pub trait Stat:
     }
 }
 
+// TODO: spawn as a child of the parent entity, move to hook
 fn on_insert<S: Stat + Component>(
     trigger: Trigger<OnAdd, S>,
     stat: Query<&S>,
@@ -109,6 +110,7 @@ fn on_insert<S: Stat + Component>(
         .insert(Dirty::<S>::default());
 }
 
+// TODO: move to hook
 fn on_remove<S: Stat + Component>(
     trigger: Trigger<OnRemove, S>,
     without_modifies: Query<Entity, Without<modifier::Modifies>>,

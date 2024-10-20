@@ -176,7 +176,7 @@ impl<T: AbilityAction> Command for AbilityActionCommand<T> {
 }
 
 #[derive(AbilityAction, Clone, Default, Reflect)]
-#[action(damage)]
+#[ability_action(damage)]
 pub(crate) struct Damage<T: Stat + Component + GetTypeRegistration> {
     pub(crate) amount: Prop<T>,
     pub(crate) scale: f32,
@@ -197,7 +197,7 @@ fn damage<T: Stat + Component + GetTypeRegistration>(
 }
 
 #[derive(AbilityAction, Clone, Default, Reflect)]
-#[action(log)]
+#[ability_action(log)]
 pub(crate) struct Log;
 
 fn log(event: In<ActionInput<Log>>) {
