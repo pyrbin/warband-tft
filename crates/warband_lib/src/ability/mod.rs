@@ -23,10 +23,18 @@ use crate::{
 };
 
 // TODO:
-// - Ability Registration #[ability([id])]
-// - Projectile Delivery Trigger
-// - Effect Lifecycle
-// - Area Delivery Trigger
+// [ ] Effects
+// [ ] Ability Registration #[ability([id])]
+// [ ] Area Delivery Trigger
+// [x] Projectile Delivery Trigger
+// [ ] Instant Delivery Trigger
+// [ ] Action Targeting
+// [ ] Linear Projectile / Tracking Distiction
+// [ ] Fire Sound Action
+// [ ] Particle Action
+
+// For spawn system introduce an "ID" to lookup in a registry
+// SpawnAbility(id) -> "spawner"
 
 pub(super) fn example() -> impl Bundle {
     (

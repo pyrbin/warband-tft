@@ -1,4 +1,5 @@
 use bevy::ecs::system::EntityCommands;
+use dyn_clone::DynClone;
 
 use crate::prelude::*;
 
@@ -36,4 +37,20 @@ pub(crate) fn translation(
         .get(entity)
         .map(|g| g.translation)
         .map_err(|_| ())
+}
+
+pub(crate) trait BundleBox: DynClone + Sync + Send + 'static {
+    fn insert(&self, entity_commands: EntityCommands);
+    fn spawn(&self, commands: Commands);
+}
+
+dyn_clone::clone_trait_object!(BundleBox);
+
+impl<T: Bundle + Clone> BundleBox for T {
+    fn insert(&self, mut entity_commands: EntityCommands) {
+        entity_commands.insert((*self).clone());
+    }
+    fn spawn(&self, mut commands: Commands) {
+        commands.spawn((*self).clone());
+    }
 }
