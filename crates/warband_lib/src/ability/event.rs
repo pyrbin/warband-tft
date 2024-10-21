@@ -1,4 +1,5 @@
-use std::ops::Deref;
+use core::fmt;
+use std::{fmt::Display, ops::Deref};
 
 use crate::prelude::*;
 use bevy::{
@@ -40,23 +41,41 @@ pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
     }
 }
 
-#[derive(Event, Clone, Reflect)]
+#[derive(Event, Clone, Reflect, Debug)]
 #[enum_dispatch(AbilityEventType)]
 pub(crate) enum AbilityEvent {
     OnCast(OnCast),
     OnTrigger(OnTrigger),
 }
 
+impl fmt::Display for AbilityEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AbilityEvent::OnCast(event) => write!(f, "{}", event),
+            AbilityEvent::OnTrigger(event) => write!(f, "{}", event),
+        }
+    }
+}
+
 #[enum_dispatch]
 pub(crate) trait AbilityEventType:
-    Event + Reflect + FromReflect + TypePath + GetTypeRegistration + Clone + Send + Sync + 'static
+    Event
+    + Reflect
+    + FromReflect
+    + TypePath
+    + GetTypeRegistration
+    + Display
+    + Clone
+    + Send
+    + Sync
+    + 'static
 {
     fn ability(&self) -> Entity;
     fn caster(&self) -> Entity;
     fn target(&self) -> AbilityTarget;
 }
 
-#[derive(Event, Clone, Reflect)]
+#[derive(Event, Clone, Reflect, Debug)]
 pub(crate) struct OnCast {
     pub(crate) caster: Entity,
     pub(crate) target: AbilityTarget,
@@ -75,12 +94,24 @@ impl AbilityEventType for OnCast {
     }
 }
 
-#[derive(Event, Clone, Reflect)]
+impl fmt::Display for OnCast {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OnCast({:?})", self.ability)
+    }
+}
+
+#[derive(Event, Clone, Reflect, Debug)]
 pub(crate) struct OnTrigger {
     pub(crate) caster: Entity,
     pub(crate) target: AbilityTarget,
     pub(crate) ability: Entity,
     pub(crate) trigger: Entity,
+}
+
+impl fmt::Display for OnTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "OnTrigger({:?})", self.trigger)
+    }
 }
 
 impl AbilityEventType for OnTrigger {
@@ -95,24 +126,39 @@ impl AbilityEventType for OnTrigger {
     }
 }
 
-pub(crate) trait AsAbilityEventHook: AbilityEventType + Sized {
-    fn actions<B: Bundle>(actions: B) -> AbilityEventHook<Self, B>;
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub(crate) struct Actions<T: AbilityEventType> {
+    pub(crate) actions: SmallVec<[Entity; 8]>,
+    #[reflect(ignore)]
+    _marker: std::marker::PhantomData<T>,
 }
 
-impl<T: AbilityEventType> AsAbilityEventHook for T {
-    fn actions<B: Bundle>(actions: B) -> AbilityEventHook<Self, B> {
-        AbilityEventHook::run(actions)
+impl<T: AbilityEventType> Deref for Actions<T> {
+    type Target = SmallVec<[Entity; 8]>;
+    fn deref(&self) -> &Self::Target {
+        &self.actions
+    }
+}
+
+impl<T: AbilityEventType> Actions<T> {
+    pub(crate) fn new(entities: impl IntoIterator<Item = Entity>) -> Self {
+        Self {
+            actions: entities.into_iter().collect(),
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
 // TODO: impl & use AbilityActionBundle so only Actions(T) can be added
-pub(crate) struct AbilityEventHook<T: AbilityEventType, B: Bundle> {
+#[derive(Clone)]
+pub(crate) struct ActionHooks<T: AbilityEventType, B: Bundle> {
+    actions: B,
     _marker: std::marker::PhantomData<(T, B)>,
-    pub(crate) actions: B,
 }
 
-impl<T: AbilityEventType, B: Bundle> AbilityEventHook<T, B> {
-    pub(crate) fn run(actions: B) -> Self {
+impl<T: AbilityEventType, B: Bundle> ActionHooks<T, B> {
+    pub(crate) const fn run(actions: B) -> Self {
         Self {
             _marker: std::marker::PhantomData,
             actions,
@@ -120,30 +166,30 @@ impl<T: AbilityEventType, B: Bundle> AbilityEventHook<T, B> {
     }
 }
 
-impl<T: AbilityEventType, B: Bundle> Component for AbilityEventHook<T, B> {
+impl<T: AbilityEventType, B: Bundle> Component for ActionHooks<T, B> {
     const STORAGE_TYPE: StorageType = StorageType::SparseSet;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(on_ability_event_hook::<T, B>);
+        hooks.on_add(action_hooks::<T, B>);
     }
 }
 
-fn on_ability_event_hook<T: AbilityEventType, B: Bundle>(
+fn action_hooks<T: AbilityEventType, B: Bundle>(
     mut world: DeferredWorld<'_>,
     entity: Entity,
     _cid: ComponentId,
 ) {
-    world.commands().add(InitAbilityEventHookCommand {
+    world.commands().add(ActionHooksCommand {
         entity,
         _marker: std::marker::PhantomData::<(T, B)>,
     });
 }
 
-struct InitAbilityEventHookCommand<T: AbilityEventType, B: Bundle> {
+struct ActionHooksCommand<T: AbilityEventType, B: Bundle> {
     entity: Entity,
     _marker: std::marker::PhantomData<(T, B)>,
 }
 
-impl<T: AbilityEventType, B: Bundle> Command for InitAbilityEventHookCommand<T, B> {
+impl<T: AbilityEventType, B: Bundle> Command for ActionHooksCommand<T, B> {
     fn apply(self, world: &mut World) {
         let Some(mut entity_mut) = world.get_entity_mut(self.entity) else {
             #[cfg(debug_assertions)]
@@ -153,7 +199,7 @@ impl<T: AbilityEventType, B: Bundle> Command for InitAbilityEventHookCommand<T, 
             return;
         };
 
-        let Some(trigger) = entity_mut.take::<AbilityEventHook<T, B>>() else {
+        let Some(trigger) = entity_mut.take::<ActionHooks<T, B>>() else {
             #[cfg(debug_assertions)]
             panic!("hook component not found");
 
@@ -196,26 +242,25 @@ impl<T: AbilityEventType, B: Bundle> Command for InitAbilityEventHookCommand<T, 
     }
 }
 
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-pub(crate) struct Actions<T: AbilityEventType> {
-    pub(crate) hooks: SmallVec<[Entity; 8]>,
-    #[reflect(ignore)]
-    _marker: std::marker::PhantomData<T>,
+pub(crate) trait CreateActionHooks: Sized {
+    type Event: AbilityEventType;
+
+    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B>;
 }
 
-impl<T: AbilityEventType> Deref for Actions<T> {
-    type Target = SmallVec<[Entity; 8]>;
-    fn deref(&self) -> &Self::Target {
-        &self.hooks
+// TODO: Might want to remove this in favor of Actions<T> impl.
+impl<T: AbilityEventType> CreateActionHooks for T {
+    type Event = T;
+
+    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B> {
+        ActionHooks::run(actions)
     }
 }
 
-impl<T: AbilityEventType> Actions<T> {
-    pub(crate) fn new(entities: impl IntoIterator<Item = Entity>) -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-            hooks: entities.into_iter().collect(),
-        }
+impl<T: AbilityEventType> CreateActionHooks for Actions<T> {
+    type Event = T;
+
+    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B> {
+        ActionHooks::run(actions)
     }
 }

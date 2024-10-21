@@ -56,6 +56,7 @@ bevy_mod_picking = { version = "0.20", default-features = true }
 bevy_vector_shapes = { git = "https://github.com/pyrbin/bevy_vector_shapes.git", branch = "orthographic-billboard" }
 big-brain = "0.21.1"
 bevy-trait-query = { git = "https://github.com/RobWalt/bevy-trait-query.git", branch = "bevy-0.14-partial-update" } 
+bevy_sprite3d = "3.0.0"
 
 # dev
 bevy_egui = { version = "0.28.0", optional = true } # version governed by bevy_editor_pls

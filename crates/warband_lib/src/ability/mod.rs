@@ -1,9 +1,11 @@
+use core::panic;
 use std::borrow::Cow;
 
-use action::{Action, Targets};
+use action::AbilityAction;
+use bevy::ecs::component::{ComponentHooks, StorageType};
 use cast::{cast_ability, try_ability, CastAbility, TryAbility};
 use enumflags2::BitFlags;
-use event::{AbilityEventType, AsAbilityEventHook, OnCast, OnTrigger};
+use event::{AbilityEventType, OnCast, OnTrigger};
 use projectile::{ProjectileEvent, ProjectileTarget, ProjectileType, TrackingProjectile};
 use spawn::SpawnExtensions;
 
@@ -12,19 +14,14 @@ pub mod area;
 pub mod cast;
 pub mod effect;
 pub mod event;
+pub mod example;
 pub mod projectile;
 
-use crate::{
-    for_in_match,
-    prelude::*,
-    register_stats,
-    stats::stat,
-    unit::{stats::Health, Allegiance},
-};
+use crate::{for_in_match, prelude::*, register_stats, stats::stat, unit::Allegiance};
 
-// TODO:
 // [ ] Effects
-// [ ] Ability Registration #[ability([id])]
+// [/] Ability Registration
+// [ ] Ability Caster & Ability Slots
 // [ ] Area Delivery Trigger
 // [x] Projectile Delivery Trigger
 // [ ] Instant Delivery Trigger
@@ -32,33 +29,11 @@ use crate::{
 // [ ] Linear Projectile / Tracking Distiction
 // [ ] Fire Sound Action
 // [ ] Particle Action
-
-// For spawn system introduce an "ID" to lookup in a registry
-// SpawnAbility(id) -> "spawner"
-
-pub(super) fn example() -> impl Bundle {
-    (
-        AbilityId("example".into()),
-        AbilityType::Projectile,
-        ProjectileType::Tracking,
-        Element::FIRE,
-        TargetTeam::HOSTILE,
-        OnTrigger::actions(Action(
-            Targets::ENTITY,
-            action::Damage::<Health> {
-                amount: action::Prop::Target,
-                scale: 0.2,
-                can_crit: true,
-            },
-        )),
-        Speed(4.0),
-        Radius(0.5),
-        Damage(10.0),
-    )
-}
+// [ ] Try Sprite 3D Projectile
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(
+        Ability,
         AbilityId,
         AbilityType,
         AbilityTarget,
@@ -74,24 +49,113 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_event::<TryAbility>();
     app.add_event::<CastAbility>();
+    app.init_resource::<AbilityRegistry>();
+
+    app.add_plugins(example::plugin);
 
     app.add_plugins(projectile::plugin);
     app.add_plugins((event::plugin::<OnCast>, event::plugin::<OnTrigger>));
 
-    app.add_plugins((
-        action::plugin::<action::Damage<Health>>,
-        action::plugin::<action::Log>,
-    ));
-
     app.add_systems(Update, (try_ability, cast_ability));
-
     app.add_systems(Update, projectile_events);
+
     app.observe(cast);
 }
 
-#[derive(Reflect, Component, Clone, Default, Debug)]
+pub trait AbilityExt {
+    fn register_ability<T: AbilityData>(&mut self) -> &mut Self;
+    fn register_ability_action<T: AbilityAction>(&mut self) -> &mut Self;
+}
+
+impl AbilityExt for App {
+    fn register_ability<T: AbilityData>(&mut self) -> &mut Self {
+        self.world_mut()
+            .resource_scope(|_, mut abilities: Mut<'_, AbilityRegistry>| {
+                let id = T::ID;
+                let bundle: Box<dyn BundleBox> = Box::new(T::bundle().clone());
+                abilities.0.try_insert(id, bundle).unwrap_or_else(|err| {
+                    panic!(
+                        "Failed to insert ability with ID {:?} into registry",
+                        err.entry.key()
+                    );
+                });
+            });
+        self
+    }
+
+    fn register_ability_action<T: AbilityAction>(&mut self) -> &mut Self {
+        self.add_plugins(action::plugin::<T>);
+        self
+    }
+}
+
+#[derive(Reflect, Resource, DerefMut, Deref, Default)]
+#[reflect(Resource)]
+pub(crate) struct AbilityRegistry(HashMap<AbilityId, Box<dyn BundleBox>>);
+
+pub(crate) trait AbilityData {
+    const ID: AbilityId;
+    fn bundle() -> impl AbilityBundle;
+}
+
+pub(crate) trait AbilityBundle: Bundle + Clone {}
+impl<T: Bundle + Clone> AbilityBundle for T {}
+
+#[derive(Reflect, Clone, Default, Debug, Deref, Hash, PartialEq, Eq, Display, From)]
 #[reflect(Component, Default, Debug)]
-pub(crate) struct AbilityId(pub(crate) Cow<'static, str>);
+pub(crate) struct Ability(pub(crate) AbilityId);
+
+impl Component for Ability {
+    const STORAGE_TYPE: StorageType = StorageType::SparseSet;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(
+            |mut world: bevy::ecs::world::DeferredWorld<'_>, entity, _| {
+                let ability = {
+                    let ability = world.get::<Ability>(entity);
+                    ability.cloned()
+                }
+                .expect("ability should exist");
+                world.commands().insert_from(entity, ability);
+            },
+        );
+    }
+}
+
+#[spawner(Ability)]
+fn spawn(
+    In((id, args)): In<(Entity, Ability)>,
+    mut commands: Commands,
+    abilities: Res<AbilityRegistry>,
+) {
+    let ability_id = args.0;
+    if let Some(bundle) = abilities.0.get(&ability_id) {
+        {
+            let entity_commands = commands.entity(id);
+            bundle.insert(entity_commands);
+        }
+        {
+            let mut entity_commands = commands.entity(id);
+            let id_str = ability_id.0.clone();
+            entity_commands
+                .remove::<Ability>()
+                .insert(ability_id.clone())
+                .insert(Name::ability(id_str));
+        }
+    } else {
+        panic!("tried to spawn non-existing ability {ability_id:?}");
+    }
+}
+
+#[derive(Reflect, Clone, Component, Default, Debug, Deref, Hash, PartialEq, Eq, Display, From)]
+#[reflect(Component, Default, Debug)]
+pub(crate) struct AbilityId(Cow<'static, str>);
+
+impl AbilityId {
+    const fn new(name: &'static str) -> Self {
+        Self(Cow::Borrowed(name))
+    }
+}
 
 #[derive(Reflect, Component, Clone, Debug)]
 #[reflect(Component, Debug)]

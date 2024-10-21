@@ -7,7 +7,6 @@ use syn::{Ident, ItemFn};
 
 pub fn impl_spawner(spawner_ty: &syn::Path, input: &ItemFn) -> TokenStream {
     let fn_name = &input.sig.ident;
-
     let crate_ident = match crate_name(CRATE_IDENT)
         .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
     {

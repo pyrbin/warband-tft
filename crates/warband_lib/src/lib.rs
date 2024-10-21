@@ -1,7 +1,9 @@
+#![allow(incomplete_features)]
 #![feature(let_chains)]
 #![feature(if_let_guard)]
 #![feature(associated_type_defaults)]
 #![feature(trivial_bounds)]
+#![feature(const_trait_impl)]
 
 mod assets;
 #[cfg(feature = "dev")]

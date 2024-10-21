@@ -1,7 +1,7 @@
 use bevy_mod_picking::prelude::*;
 
 use crate::{
-    ability::{self, cast::TryAbility, Caster},
+    ability::{self, cast::TryAbility, example::Fireball, Ability, AbilityData, Caster},
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
@@ -65,7 +65,7 @@ fn setup(
 
     commands.spawn((
         Name::new("Example Spell"),
-        ability::example(),
+        Ability(Fireball::ID),
         Caster(caster),
     ));
 
@@ -138,9 +138,9 @@ fn test_cast(
     target: Query<Entity, With<MoveTo>>,
     mut caster: Query<&mut Transform>,
 ) {
-    let ability = single!(query);
-    let target = single!(target);
     if buttons.just_pressed(KeyCode::Space) {
+        let ability = single!(query);
+        let target = single!(target);
         let mut transform = or_return!(caster.get_mut(**ability.1));
         // random Vec3 with y being between 2 and 10.
         let position = Vec3::ZERO + Vec3::Y * (rand::random::<f32>() * 10.0);

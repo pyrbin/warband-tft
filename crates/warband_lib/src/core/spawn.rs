@@ -13,15 +13,15 @@ pub struct SpawnSystemId<I, O = ()> {
 
 pub struct SpawnSystemCommand<I, O> {
     pub entity: Entity,
-    pub arguments: I,
+    pub input: I,
     _marker: PhantomData<O>,
 }
 
 impl<I, O> SpawnSystemCommand<I, O> {
-    pub fn new(entity: Entity, arguments: I) -> Self {
+    pub fn new(entity: Entity, input: I) -> Self {
         Self {
             entity,
-            arguments,
+            input,
             _marker: default(),
         }
     }
@@ -44,14 +44,46 @@ where
             }
         };
 
-        if let Err(err) = world.run_system_with_input(system.id, (self.entity, self.arguments)) {
+        if let Err(err) = world.run_system_with_input(system.id, (self.entity, self.input)) {
             error!("error running spawn system! {}", err)
         }
     }
 }
 
+pub struct DeferredSpawnSystemCommand<I, O> {
+    pub input: I,
+    _marker: PhantomData<O>,
+}
+
+impl<I, O> DeferredSpawnSystemCommand<I, O> {
+    pub fn new(input: I) -> Self {
+        Self {
+            input,
+            _marker: default(),
+        }
+    }
+}
+
+impl<I, O> Command for DeferredSpawnSystemCommand<I, O>
+where
+    I: Send + 'static,
+    O: Send + 'static,
+    SpawnSystemId<I, O>: FromWorld,
+{
+    fn apply(self, world: &mut World) {
+        let mut commands = world.commands();
+        let entity = commands.spawn_empty().id();
+        commands.add(SpawnSystemCommand::new(entity, self.input));
+    }
+}
+
 pub trait SpawnExtensions<I, O> {
+    /// Spawns an entity and add a command to run spawn system for [`I`].
     fn spawn_from(&mut self, input: I) -> EntityCommands;
+    /// Like [`Self::spawn_from`], but entity is created when command is applied.
+    fn deferred_spawn_from(&mut self, input: I) -> &mut Self;
+    /// Adds a command to run spawn system for [`I`] on given entity.
+    fn insert_from(&mut self, entity: Entity, input: I) -> EntityCommands;
 }
 
 impl<I, O> SpawnExtensions<I, O> for Commands<'_, '_>
@@ -62,6 +94,16 @@ where
 {
     fn spawn_from(&mut self, input: I) -> EntityCommands {
         let entity = self.spawn_empty().id();
+        self.add(SpawnSystemCommand::new(entity, input));
+        self.entity(entity)
+    }
+
+    fn deferred_spawn_from(&mut self, input: I) -> &mut Self {
+        self.add(DeferredSpawnSystemCommand::new(input));
+        self
+    }
+
+    fn insert_from(&mut self, entity: Entity, input: I) -> EntityCommands {
         self.add(SpawnSystemCommand::new(entity, input));
         self.entity(entity)
     }

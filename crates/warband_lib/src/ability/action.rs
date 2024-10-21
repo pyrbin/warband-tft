@@ -1,6 +1,8 @@
+use core::fmt;
+
 use bevy::ecs::{system::SystemId, world::Command};
 
-use crate::{prelude::*, unit::combat::DamageEvent};
+use crate::prelude::*;
 
 use super::{
     event::{AbilityEvent, AbilityEventType},
@@ -132,13 +134,35 @@ pub(crate) struct ActionInput<T: AbilityAction> {
     pub(crate) data: T::Data,
 }
 
-pub trait ActionSystemIdProvider<T: AbilityAction>: Resource + Send + Sync + 'static {
+impl<T: AbilityAction> fmt::Debug for ActionInput<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ActionInput")
+            .field("entity", &self.entity)
+            .field("target", &self.target)
+            .field("event", &self.event)
+            .finish()
+    }
+}
+
+impl<T: AbilityAction> fmt::Display for ActionInput<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "ActionInput {{ entity: {:?}, target: {:?}, event: {:?} }}",
+            self.entity, self.target, self.event
+        )
+    }
+}
+
+pub(crate) trait ActionSystemIdProvider<T: AbilityAction>:
+    Resource + Send + Sync + 'static
+{
     fn id(&self) -> SystemId<ActionInput<T>>;
 }
 
 #[derive(Resource)]
-pub struct ActionSystemId<T: AbilityAction> {
-    id: SystemId<ActionInput<T>>,
+pub(crate) struct ActionSystemId<T: AbilityAction> {
+    pub(crate) id: SystemId<ActionInput<T>>,
 }
 
 impl<T: AbilityAction> ActionSystemIdProvider<T> for ActionSystemId<T> {
@@ -147,7 +171,7 @@ impl<T: AbilityAction> ActionSystemIdProvider<T> for ActionSystemId<T> {
     }
 }
 
-pub struct AbilityActionCommand<T: AbilityAction> {
+pub(crate) struct AbilityActionCommand<T: AbilityAction> {
     input: ActionInput<T>,
 }
 
@@ -173,33 +197,4 @@ impl<T: AbilityAction> Command for AbilityActionCommand<T> {
             error!("error running action system! {}", err)
         }
     }
-}
-
-#[derive(AbilityAction, Clone, Default, Reflect)]
-#[ability_action(damage)]
-pub(crate) struct Damage<T: Stat + Component + GetTypeRegistration> {
-    pub(crate) amount: Prop<T>,
-    pub(crate) scale: f32,
-    pub(crate) can_crit: bool, // demo
-}
-
-fn damage<T: Stat + Component + GetTypeRegistration>(
-    input: In<ActionInput<Damage<T>>>,
-    mut damage_event: EventWriter<crate::unit::combat::DamageEvent>,
-) {
-    if let AbilityTarget::Entity(entity) = input.target {
-        damage_event.send(DamageEvent {
-            target: entity,
-            source: input.event.ability(),
-            damage: input.data.amount.value() * input.data.scale,
-        });
-    }
-}
-
-#[derive(AbilityAction, Clone, Default, Reflect)]
-#[ability_action(log)]
-pub(crate) struct Log;
-
-fn log(event: In<ActionInput<Log>>) {
-    println!("log :)");
 }

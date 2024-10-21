@@ -1,4 +1,5 @@
 use super::CRATE_IDENT;
+use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -168,73 +169,41 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-// // Create DamageActionData struct
-// let action_data_fields = prop_fields.iter().map(|(ident, ty)| {
-//     quote! {
-//         pub(crate) #ident: #ty
-//     }
-// });
+#[derive(FromDeriveInput)]
+#[darling(attributes(ability))]
+struct AbilityOpts {
+    id: String,
+    bundle: syn::Ident,
+}
 
-// // Implement From<Damage> for DamageActionData
-// let action_data_from_impl = prop_fields.iter().map(|(ident, _)| {
-//     quote! {
-//         #ident: value.#ident.value().clone(),
-//     }
-// });
+pub(super) fn impl_ability_derive(ast: &DeriveInput) -> TokenStream {
+    let name = &ast.ident;
+    let opts = AbilityOpts::from_derive_input(ast).expect("invalid options");
 
-// // Now we generate the `damage_extract_data` function's logic for Prop fields
-// let prop_extraction = prop_fields.iter().map(|(ident, _)| {
-//     quote! {
-//         let #ident = match action.action().#ident {
-//             Prop::Ability => or_return!(input, #ident.get(input.event.ability())),
-//             Prop::Parent => or_return!(input, #ident.get(parent.get())),
-//             Prop::This => or_return!(input, #ident.get(input.entity)),
-//             Prop::Caster => or_return!(input, #ident.get(input.event.caster())),
-//             _ => unreachable!(),
-//         };
-//         input.data.#ident = #ident.clone();
-//     }
-// });
+    let crate_ident = match crate_name(CRATE_IDENT)
+        .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
+    {
+        FoundCrate::Itself => quote!(crate::ability),
+        FoundCrate::Name(name) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote!( #ident::ability )
+        }
+    };
 
-// let action_data_name = quote! { #name ActionData };
+    let ability_id = opts.id;
+    let ability_bundle = opts.bundle;
+    let generics = &ast.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-// let action_fn_name_extract_data = quote! { #action_fn_name _extract_data };
+    let expanded = quote! {
+        impl #impl_generics #crate_ident::AbilityData for #name #ty_generics #where_clause {
+            const ID: AbilityId = AbilityId::new(#ability_id);
 
-// ----------------
+            fn bundle() -> impl AbilityBundle {
+                #ability_bundle()
+            }
+        }
+    };
 
-// impl From<#name> for #action_data_name {
-//     fn from(value: #name) -> Self {
-//         Self {
-//             #(#action_data_from_impl)*
-//             #(#non_prop_fields: value.#non_prop_fields),*,
-//         }
-//     }
-// }
-
-// impl AbilityAction for #name {
-//     type Provider = ActionSystemId<Self>;
-//     type Data = #name ActionData;
-// }
-
-// impl FromWorld for ActionSystemId<#name> {
-//     fn from_world(world: &mut World) -> Self {
-//         Self {
-//             id: world.register_system(#action_fn_name_extract_data.pipe(#action_fn_name)),
-//         }
-//     }
-// }
-
-// fn #action_fn_name_extract_data(
-//     input: In<ActionInput<#name>>,
-//     parent: Query<&Parent>,
-//     action: Query<&Action<#name>>,
-//     #(#prop_fields),*
-// ) -> ActionInput<#name> {
-//     let mut input = input.clone();
-//     let parent = or_return!(input, parent.get(input.entity));
-//     let action = or_return!(input, action.get(input.entity));
-
-//     #(#prop_extraction)*
-
-//     input
-// }
+    TokenStream::from(expanded)
+}

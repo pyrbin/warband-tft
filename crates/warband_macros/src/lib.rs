@@ -36,6 +36,14 @@ pub fn ability_action_derive(input: TokenStream) -> TokenStream {
     crate::ability::impl_ability_action_derive(&ast)
 }
 
+/// Derive macro generating an impl of an `Ability`.
+#[proc_macro_error]
+#[proc_macro_derive(Ability, attributes(ability))]
+pub fn ability_derive(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    crate::ability::impl_ability_derive(&ast)
+}
+
 /// Macro to specify a spawner.
 #[proc_macro_attribute]
 pub fn spawner(attr: TokenStream, input: TokenStream) -> TokenStream {
