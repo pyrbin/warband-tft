@@ -11,7 +11,7 @@ use bevy::{
 };
 use enum_dispatch::enum_dispatch;
 
-use super::AbilityTarget;
+use super::Target;
 
 pub(super) fn plugin<T: AbilityEventType>(app: &mut App)
 where
@@ -72,13 +72,13 @@ pub(crate) trait AbilityEventType:
 {
     fn ability(&self) -> Entity;
     fn caster(&self) -> Entity;
-    fn target(&self) -> AbilityTarget;
+    fn target(&self) -> Target;
 }
 
 #[derive(Event, Clone, Reflect, Debug)]
 pub(crate) struct OnCast {
     pub(crate) caster: Entity,
-    pub(crate) target: AbilityTarget,
+    pub(crate) target: Target,
     pub(crate) ability: Entity,
 }
 
@@ -89,7 +89,7 @@ impl AbilityEventType for OnCast {
     fn caster(&self) -> Entity {
         self.caster
     }
-    fn target(&self) -> AbilityTarget {
+    fn target(&self) -> Target {
         self.target
     }
 }
@@ -103,7 +103,7 @@ impl fmt::Display for OnCast {
 #[derive(Event, Clone, Reflect, Debug)]
 pub(crate) struct OnTrigger {
     pub(crate) caster: Entity,
-    pub(crate) target: AbilityTarget,
+    pub(crate) target: Target,
     pub(crate) ability: Entity,
     pub(crate) trigger: Entity,
 }
@@ -121,7 +121,7 @@ impl AbilityEventType for OnTrigger {
     fn caster(&self) -> Entity {
         self.caster
     }
-    fn target(&self) -> AbilityTarget {
+    fn target(&self) -> Target {
         self.target
     }
 }

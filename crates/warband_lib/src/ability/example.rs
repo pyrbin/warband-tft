@@ -7,8 +7,7 @@ use super::{
     action::{Action, ActionInput, Prop, Targets},
     event::{AbilityEventType, Actions, CreateActionHooks, OnCast, OnTrigger},
     projectile::ProjectileType,
-    AbilityBundle, AbilityExt, AbilityId, AbilityTarget, AbilityType, Element, Radius, Speed,
-    TargetTeam,
+    AbilityBundle, AbilityExt, AbilityId, AbilityType, Element, Radius, Speed, Target, TargetTeam,
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -59,7 +58,7 @@ pub(crate) fn damage<T: Stat + Component + GetTypeRegistration>(
     input: In<ActionInput<Damage<T>>>,
     mut damage_event: EventWriter<crate::unit::combat::DamageEvent>,
 ) {
-    if let AbilityTarget::Entity(entity) = input.target {
+    if let Target::Entity(entity) = input.target {
         damage_event.send(DamageEvent {
             target: entity,
             source: input.event.ability(),

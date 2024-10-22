@@ -15,7 +15,7 @@ pub(super) fn plugin(app: &mut App) {
         ProjectileType,
         EntitiesHit,
         AllegianceFilter,
-        ProjectileTarget,
+        Target,
         ProjectileEvent
     );
 
@@ -27,7 +27,7 @@ pub(super) fn plugin(app: &mut App) {
 pub(crate) struct ProjectileBundle {
     pub projectile: Projectile,
     pub projectile_type: ProjectileType,
-    pub projectile_target: ProjectileTarget,
+    pub projectile_target: Target,
     pub entites_hit: EntitiesHit,
     pub velocity: LinearVelocity,
     pub collider: Collider,
@@ -53,18 +53,6 @@ pub(crate) struct EntitiesHit(pub EntityHashSet);
 #[derive(Component, Reflect, Default, DerefMut, Deref, From)]
 pub(crate) struct AllegianceFilter(Allegiance);
 
-#[derive(Reflect, Component, Clone, Debug)]
-pub(crate) enum ProjectileTarget {
-    Entity(Entity),
-    Point(Vec3),
-}
-
-impl Default for ProjectileTarget {
-    fn default() -> Self {
-        Self::Point(Vec3::ZERO)
-    }
-}
-
 #[derive(Event, Reflect, Debug, Clone)]
 pub(crate) enum ProjectileEvent {
     Spawned { projectile: Entity },
@@ -73,7 +61,7 @@ pub(crate) enum ProjectileEvent {
 }
 
 pub(crate) struct TrackingProjectile {
-    pub(crate) projectile_target: ProjectileTarget,
+    pub(crate) projectile_target: Target,
     pub(crate) projectile_type: ProjectileType,
     pub(crate) filter: Allegiance,
     pub(crate) radius: f32,
@@ -101,8 +89,8 @@ fn spawn_tracking(
     } = args;
 
     let target = match projectile_target {
-        ProjectileTarget::Entity(entity) => or_return!(global_translation(&transforms, entity)),
-        ProjectileTarget::Point(point) => point,
+        Target::Entity(entity) => or_return!(global_translation(&transforms, entity)),
+        Target::Point(point) => point,
     };
 
     let velocity = aim_projectile_straight_fallback(target - origin, Vec3::ZERO, speed, gravity.0);
@@ -145,7 +133,7 @@ fn trajectory(
             Option<&GravityScale>,
             &mut LinearVelocity,
             &mut Transform,
-            &ProjectileTarget,
+            &Target,
             &Speed,
         ),
         With<Projectile>,
@@ -166,7 +154,7 @@ fn trajectory(
         let scale = gravity_scale.map(|s| s.0).unwrap_or(1.0);
         linear_velocity.0 += gravity.0 * scale * delta_time;
 
-        if let ProjectileTarget::Entity(entity) = projectile_target
+        if let Target::Entity(entity) = projectile_target
             && matches!(projectile_type, ProjectileType::Tracking)
         {
             let (target_transform, target_vel) = or_return!(transforms.get(*entity));
@@ -186,12 +174,7 @@ fn collisions(
     mut collisions: EventReader<Collision>,
     mut projectile_events: EventWriter<ProjectileEvent>,
     mut projectiles: Query<
-        (
-            Entity,
-            &AllegianceFilter,
-            &mut EntitiesHit,
-            &ProjectileTarget,
-        ),
+        (Entity, &AllegianceFilter, &mut EntitiesHit, &Target),
         (With<Projectile>, Without<Disabled<Projectile>>),
     >,
     units: Query<(Entity, &Allegiance), With<Unit>>,
@@ -214,7 +197,7 @@ fn collisions(
             target: unit,
         });
 
-        if let ProjectileTarget::Entity(target) = projectile_target
+        if let Target::Entity(target) = projectile_target
             && unit == *target
         {
             projectile_events.send(ProjectileEvent::Destroyed { projectile });
@@ -236,10 +219,10 @@ fn collisions(
 }
 
 #[cfg(feature = "dev")]
-pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<(&ProjectileTarget, &GlobalTransform)>) {
+pub(crate) fn gizmos(mut gizmos: Gizmos, entities: Query<(&Target, &GlobalTransform)>) {
     use bevy::color::palettes::css::LIGHT_CYAN;
     for (target, transform) in &entities {
-        if let ProjectileTarget::Point(point) = target {
+        if let Target::Point(point) = target {
             gizmos.line(transform.translation(), *point, LIGHT_CYAN);
             gizmos.sphere(*point, Quat::IDENTITY, 0.1, LIGHT_CYAN);
         }

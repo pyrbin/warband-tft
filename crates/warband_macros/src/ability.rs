@@ -97,7 +97,7 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
                     Prop::This => or_return!(input, #ident.get(input.entity)),
                     Prop::Caster => or_return!(input, #ident.get(input.event.caster())),
                     Prop::Target => {
-                        if let AbilityTarget::Entity(target) = input.target {
+                        if let Target::Entity(target) = input.target {
                             or_return!(input, #ident.get(target))
                         } else {
                             return input;

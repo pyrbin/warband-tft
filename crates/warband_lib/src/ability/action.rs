@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 use super::{
     event::{AbilityEvent, AbilityEventType},
-    AbilityTarget,
+    Target,
 };
 
 pub(super) fn plugin<T: AbilityAction<Data: GetTypeRegistration> + GetTypeRegistration>(
@@ -31,31 +31,23 @@ pub(super) fn action<T: AbilityAction>(
     let action = or_return_quiet!(action.get(entity));
 
     let targets = action.targets();
-    let point = match event.target() {
-        super::AbilityTarget::Point(point) => point,
-        super::AbilityTarget::Entity(entity) => {
-            or_return!(transforms.get(entity).map(|t| t.translation().xz()))
-        }
-        super::AbilityTarget::None => {
-            return;
-        }
-    };
+    let point = or_return!(event.target().global_translation(&transforms));
 
     if targets.contains(Targets::POINT) {
         commands.add(AbilityActionCommand::<T>::new(ActionInput {
             entity,
-            target: AbilityTarget::Point(point),
+            target: Target::Point(point),
             event: event.clone(),
             data: action.action().clone().into(),
         }));
     }
 
     if targets.contains(Targets::ENTITY)
-        && let AbilityTarget::Entity(target) = event.target()
+        && let Target::Entity(target) = event.target()
     {
         commands.add(AbilityActionCommand::<T>::new(ActionInput::<T> {
             entity,
-            target: AbilityTarget::Entity(target),
+            target: Target::Entity(target),
             event: event.clone(),
             data: action.action().clone().into(),
         }));
@@ -64,7 +56,7 @@ pub(super) fn action<T: AbilityAction>(
     if targets.contains(Targets::CASTER) {
         commands.add(AbilityActionCommand::<T>::new(ActionInput::<T> {
             entity,
-            target: AbilityTarget::Entity(event.caster()),
+            target: Target::Entity(event.caster()),
             event: event.clone(),
             data: action.action().clone().into(),
         }));
@@ -129,7 +121,7 @@ impl<T: AbilityAction> Action<T> {
 #[derive(Clone, Reflect)]
 pub(crate) struct ActionInput<T: AbilityAction> {
     pub(crate) entity: Entity,
-    pub(crate) target: AbilityTarget,
+    pub(crate) target: Target,
     pub(crate) event: AbilityEvent,
     pub(crate) data: T::Data,
 }

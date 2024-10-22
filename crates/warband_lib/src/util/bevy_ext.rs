@@ -19,6 +19,7 @@ impl Spawn for ChildBuilder<'_> {
     }
 }
 
+#[inline]
 pub(crate) fn global_translation(
     global_transform_query: &Query<'_, '_, &GlobalTransform>,
     entity: Entity,
@@ -29,6 +30,7 @@ pub(crate) fn global_translation(
         .map_err(|_| ())
 }
 
+#[inline]
 pub(crate) fn translation(
     global_transform_query: &Query<'_, '_, &Transform>,
     entity: Entity,

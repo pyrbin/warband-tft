@@ -1,19 +1,19 @@
 use crate::prelude::*;
 
-use super::{event, AbilityTarget};
+use super::{event, Target};
 
 #[derive(Event, Reflect)]
 pub struct TryAbility {
     pub caster: Entity,
     pub ability: Entity,
-    pub target: AbilityTarget,
+    pub target: Target,
 }
 
 #[derive(Event, Reflect)]
 pub struct CastAbility {
     pub caster: Entity,
     pub ability: Entity,
-    pub target: AbilityTarget,
+    pub target: Target,
 }
 
 // TODO: convert to command

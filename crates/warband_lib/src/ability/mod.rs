@@ -6,7 +6,7 @@ use bevy::ecs::component::{ComponentHooks, StorageType};
 use cast::{cast_ability, try_ability, CastAbility, TryAbility};
 use enumflags2::BitFlags;
 use event::{AbilityEventType, OnCast, OnTrigger};
-use projectile::{ProjectileEvent, ProjectileTarget, ProjectileType, TrackingProjectile};
+use projectile::{ProjectileEvent, ProjectileType, TrackingProjectile};
 use spawn::SpawnExtensions;
 
 pub mod action;
@@ -36,7 +36,7 @@ pub(super) fn plugin(app: &mut App) {
         Ability,
         AbilityId,
         AbilityType,
-        AbilityTarget,
+        Target,
         Element,
         TargetTeam,
         FromAbility,
@@ -164,14 +164,6 @@ pub(crate) enum AbilityType {
     Projectile,
 }
 
-#[derive(Component, Default, Clone, Copy, Debug, Reflect)]
-pub enum AbilityTarget {
-    Point(Vec2),
-    Entity(Entity),
-    #[default]
-    None,
-}
-
 bitflags::bitflags! {
     #[derive(Default, Component, Reflect)]
     #[reflect(Component, PartialEq)]
@@ -273,12 +265,6 @@ fn cast(
             todo!("implement area");
         }
         AbilityType::Projectile => {
-            let projectile_target = match event.target {
-                AbilityTarget::Point(point) => ProjectileTarget::Point(point.x0y()),
-                AbilityTarget::Entity(entity) => ProjectileTarget::Entity(entity),
-                AbilityTarget::None => return,
-            };
-
             let mut lens = ability_args.transmute_lens::<ProjectileArguments>();
             let projectile_args = lens.query();
             let (projecile_type, speed, radius) = or_return!(projectile_args.get(entity));
@@ -289,7 +275,7 @@ fn cast(
 
             commands
                 .spawn_from(TrackingProjectile {
-                    projectile_target,
+                    projectile_target: event.target,
                     projectile_type: projecile_type.clone(),
                     filter: Allegiance::TEAM_2, // TODO: corrent filter
                     radius: radius.value(),
@@ -314,7 +300,7 @@ fn projectile_events(
             commands.trigger_targets(
                 event::OnTrigger {
                     ability: **ability,
-                    target: AbilityTarget::Entity(*target),
+                    target: Target::Entity(*target),
                     caster: **caster,
                     trigger: *projectile,
                 },

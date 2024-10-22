@@ -148,7 +148,7 @@ fn test_cast(
         events.send(TryAbility {
             caster: **ability.1,
             ability: ability.0,
-            target: ability::AbilityTarget::Entity(target),
+            target: Target::Entity(target),
         });
     }
 }

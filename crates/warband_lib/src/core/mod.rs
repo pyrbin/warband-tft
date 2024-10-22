@@ -24,14 +24,45 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Component to mark own
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, Eq, Hash, Deref, DerefMut, From)]
-pub struct Owner(pub Entity);
+pub(crate) struct Owner(pub Entity);
 
 /// Generic component to mark component [`T`] as dirty.
 #[derive(Component, Default, Deref, DerefMut, From, Reflect)]
 #[component(storage = "SparseSet")]
-pub struct Dirty<T: Component>(#[reflect(ignore)] pub PhantomData<T>);
+pub(crate) struct Dirty<T: Component>(#[reflect(ignore)] pub PhantomData<T>);
 
 /// Generic component to mark component [`T`] as disabled.
 #[derive(Component, Default, Deref, DerefMut, From, Reflect)]
 #[component(storage = "SparseSet")]
-pub struct Disabled<T: Component>(#[reflect(ignore)] pub PhantomData<T>);
+pub(crate) struct Disabled<T: Component>(#[reflect(ignore)] pub PhantomData<T>);
+
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
+pub(crate) enum Target {
+    Point(Vec3),
+    Entity(Entity),
+}
+
+impl Target {
+    #[inline]
+    pub fn global_translation(&self, transforms: &Query<&GlobalTransform>) -> Option<Vec3> {
+        match self {
+            Self::Point(point) => Some(*point),
+            Self::Entity(entity) => global_translation(transforms, *entity).ok(),
+        }
+    }
+
+    #[inline]
+    pub fn translation(&self, transforms: &Query<&Transform>) -> Option<Vec3> {
+        match self {
+            Self::Point(point) => Some(*point),
+            Self::Entity(entity) => translation(transforms, *entity).ok(),
+        }
+    }
+}
+
+impl Default for Target {
+    fn default() -> Self {
+        Self::Point(Vec3::ZERO)
+    }
+}
