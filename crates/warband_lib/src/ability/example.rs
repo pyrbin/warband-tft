@@ -5,7 +5,8 @@ use crate::{
 
 use super::{
     action::{Action, ActionInput, Prop, Targets},
-    event::{AbilityEventType, Actions, CreateActionHooks, OnCast, OnTrigger},
+    cast::Mana,
+    event::{AbilityEventType, Actions, CreateActionBuilder, OnCast, OnTrigger},
     projectile::ProjectileType,
     AbilityBundle, AbilityExt, AbilityId, AbilityType, Element, Radius, Speed, Target, TargetTeam,
 };
@@ -42,6 +43,7 @@ fn fireball() -> impl AbilityBundle {
         )),
         Speed(4.0),
         Radius(0.5),
+        Mana(20.0),
         super::Damage(10.0),
     )
 }

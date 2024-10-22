@@ -1,7 +1,12 @@
 use bevy_mod_picking::prelude::*;
 
 use crate::{
-    ability::{self, cast::TryAbility, example::Fireball, Ability, AbilityData, Caster},
+    ability::{
+        self,
+        cast::{AbilityCaster, AbilitySlots, TryAbility},
+        example::Fireball,
+        AbilityData,
+    },
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
@@ -60,14 +65,13 @@ fn setup(
                 transform: Transform::from_translation(Vec3::Y),
                 ..default()
             },
+            AbilityCaster,
+            AbilitySlots::with(Fireball::ID)
+                .with(Fireball::ID)
+                .with(Fireball::ID)
+                .with(Fireball::ID),
         ))
         .id();
-
-    commands.spawn((
-        Name::new("Example Spell"),
-        Ability(Fireball::ID),
-        Caster(caster),
-    ));
 
     let _ = commands
         .spawn((

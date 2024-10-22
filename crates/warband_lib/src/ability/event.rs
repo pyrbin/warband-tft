@@ -152,12 +152,12 @@ impl<T: AbilityEventType> Actions<T> {
 
 // TODO: impl & use AbilityActionBundle so only Actions(T) can be added
 #[derive(Clone)]
-pub(crate) struct ActionHooks<T: AbilityEventType, B: Bundle> {
+pub(crate) struct ActionBuilder<T: AbilityEventType, B: Bundle> {
     actions: B,
     _marker: std::marker::PhantomData<(T, B)>,
 }
 
-impl<T: AbilityEventType, B: Bundle> ActionHooks<T, B> {
+impl<T: AbilityEventType, B: Bundle> ActionBuilder<T, B> {
     pub(crate) const fn run(actions: B) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -166,30 +166,30 @@ impl<T: AbilityEventType, B: Bundle> ActionHooks<T, B> {
     }
 }
 
-impl<T: AbilityEventType, B: Bundle> Component for ActionHooks<T, B> {
+impl<T: AbilityEventType, B: Bundle> Component for ActionBuilder<T, B> {
     const STORAGE_TYPE: StorageType = StorageType::SparseSet;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(action_hooks::<T, B>);
+        hooks.on_add(action_builder_hook::<T, B>);
     }
 }
 
-fn action_hooks<T: AbilityEventType, B: Bundle>(
+fn action_builder_hook<T: AbilityEventType, B: Bundle>(
     mut world: DeferredWorld<'_>,
     entity: Entity,
     _cid: ComponentId,
 ) {
-    world.commands().add(ActionHooksCommand {
+    world.commands().add(ActionBuilderCommand {
         entity,
         _marker: std::marker::PhantomData::<(T, B)>,
     });
 }
 
-struct ActionHooksCommand<T: AbilityEventType, B: Bundle> {
+struct ActionBuilderCommand<T: AbilityEventType, B: Bundle> {
     entity: Entity,
     _marker: std::marker::PhantomData<(T, B)>,
 }
 
-impl<T: AbilityEventType, B: Bundle> Command for ActionHooksCommand<T, B> {
+impl<T: AbilityEventType, B: Bundle> Command for ActionBuilderCommand<T, B> {
     fn apply(self, world: &mut World) {
         let Some(mut entity_mut) = world.get_entity_mut(self.entity) else {
             #[cfg(debug_assertions)]
@@ -199,7 +199,7 @@ impl<T: AbilityEventType, B: Bundle> Command for ActionHooksCommand<T, B> {
             return;
         };
 
-        let Some(trigger) = entity_mut.take::<ActionHooks<T, B>>() else {
+        let Some(trigger) = entity_mut.take::<ActionBuilder<T, B>>() else {
             #[cfg(debug_assertions)]
             panic!("hook component not found");
 
@@ -242,25 +242,25 @@ impl<T: AbilityEventType, B: Bundle> Command for ActionHooksCommand<T, B> {
     }
 }
 
-pub(crate) trait CreateActionHooks: Sized {
+pub(crate) trait CreateActionBuilder: Sized {
     type Event: AbilityEventType;
 
-    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B>;
+    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B>;
 }
 
 // TODO: Might want to remove this in favor of Actions<T> impl.
-impl<T: AbilityEventType> CreateActionHooks for T {
+impl<T: AbilityEventType> CreateActionBuilder for T {
     type Event = T;
 
-    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B> {
-        ActionHooks::run(actions)
+    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B> {
+        ActionBuilder::run(actions)
     }
 }
 
-impl<T: AbilityEventType> CreateActionHooks for Actions<T> {
+impl<T: AbilityEventType> CreateActionBuilder for Actions<T> {
     type Event = T;
 
-    fn run<B: Bundle>(actions: B) -> ActionHooks<Self::Event, B> {
-        ActionHooks::run(actions)
+    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B> {
+        ActionBuilder::run(actions)
     }
 }

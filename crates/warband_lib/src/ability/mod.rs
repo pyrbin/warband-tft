@@ -3,7 +3,9 @@ use std::borrow::Cow;
 
 use action::AbilityAction;
 use bevy::ecs::component::{ComponentHooks, StorageType};
-use cast::{cast_ability, try_ability, CastAbility, TryAbility};
+use cast::{
+    cast_ability, try_ability, AbilitySlot, AbilitySlotEvent, AbilitySlots, CastAbility, TryAbility,
+};
 use enumflags2::BitFlags;
 use event::{AbilityEventType, OnCast, OnTrigger};
 use projectile::{ProjectileEvent, ProjectileType, TrackingProjectile};
@@ -21,7 +23,7 @@ use crate::{for_in_match, prelude::*, register_stats, stats::stat, unit::Allegia
 
 // [ ] Effects
 // [/] Ability Registration
-// [ ] Ability Caster & Ability Slots
+// [ ] Ability Caster & Ability Slots <--- IN PROGRESS
 // [ ] Area Delivery Trigger
 // [x] Projectile Delivery Trigger
 // [ ] Instant Delivery Trigger
@@ -30,6 +32,7 @@ use crate::{for_in_match, prelude::*, register_stats, stats::stat, unit::Allegia
 // [ ] Fire Sound Action
 // [ ] Particle Action
 // [ ] Try Sprite 3D Projectile
+// [ ] More Ability & Effect Events
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(
@@ -49,6 +52,8 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_event::<TryAbility>();
     app.add_event::<CastAbility>();
+    app.add_event::<AbilitySlotEvent>();
+
     app.init_resource::<AbilityRegistry>();
 
     app.add_plugins(example::plugin);
@@ -60,6 +65,20 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(Update, projectile_events);
 
     app.observe(cast);
+
+    app.observe(AbilitySlots::on_add)
+        .observe(AbilitySlots::on_remove);
+    app.observe(AbilitySlot::on_add);
+
+    app.add_systems(
+        Update,
+        (
+            cast::total_slot_mana,
+            cast::slot_mana,
+            cast::slot_mana_modifier,
+            cast::ability_slot_events,
+        ),
+    );
 }
 
 pub trait AbilityExt {
