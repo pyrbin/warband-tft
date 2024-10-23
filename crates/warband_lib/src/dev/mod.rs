@@ -1,7 +1,8 @@
-use crate::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use bevy_egui::EguiPlugin;
 use bevy_mod_picking::debug::DebugPickingMode;
+
+use crate::prelude::*;
 
 mod console;
 pub mod gizmos_ext;

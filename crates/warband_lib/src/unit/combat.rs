@@ -1,8 +1,7 @@
 use bevy::ecs::{system::RunSystemOnce, world::Command};
 
-use crate::{assets::FontAssets, player::camera::MainCamera, prelude::*, AppState};
-
 use super::stats;
+use crate::{assets::FontAssets, player::camera::MainCamera, prelude::*, AppState};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_event::<DamageEvent>()

@@ -4,7 +4,7 @@ pub(crate) fn plugin<T: Component + Clone + GetTypeRegistration + TypePath + Fro
     app: &mut App,
 ) {
     app_register_types!(Previous<T>);
-    app.add_systems(Last, propagate_previous_changed::<T>);
+    app.add_systems(First, propagate_previous_changed::<T>);
 }
 
 #[derive(Component, Default, Deref, DerefMut, Reflect, From)]

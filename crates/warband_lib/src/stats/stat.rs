@@ -1,5 +1,11 @@
 use super::{
-    modifier::{self, Accumulated, Additive, Flat, Mult},
+    modifier::{
+        Accumulated,
+        Additive,
+        Flat,
+        Mult,
+        {self},
+    },
     StatSystems,
 };
 use crate::{prelude::*, stats::pool};

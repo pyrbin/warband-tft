@@ -9,9 +9,8 @@ use avian3d::{
 use dashmap::DashMap;
 use hexx::Hex;
 
-use crate::{navigation::agent, prelude::*};
-
 use super::Footprint;
+use crate::{navigation::agent, prelude::*};
 
 #[derive(Resource, Debug, Default, Deref, DerefMut)]
 pub struct Occupied(Arc<OccupiedBoard>);
@@ -161,33 +160,33 @@ impl InnerGetPolygon for TypedShape<'_> {
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::Ball(collider) => {
                 let (vertices, indices) = collider.to_trimesh(RESOLUTION, RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::Capsule(collider) => {
                 let (vertices, indices) = collider.to_trimesh(RESOLUTION, RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::TriMesh(collider) => {
                 vec![intersection_to_board(
                     collider.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::HeightField(collider) => {
                 let (vertices, indices) = collider.to_trimesh();
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::Compound(collider) => collider
                 .shapes()
                 .iter()
@@ -203,53 +202,53 @@ impl InnerGetPolygon for TypedShape<'_> {
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::Cylinder(collider) => {
                 let (vertices, indices) = collider.to_trimesh(RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::Cone(collider) => {
                 let (vertices, indices) = collider.to_trimesh(RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::RoundCuboid(collider) => {
                 let (vertices, indices) = collider.inner_shape.to_trimesh();
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::RoundCylinder(collider) => {
                 let (vertices, indices) = collider.inner_shape.to_trimesh(RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::RoundCone(collider) => {
                 let (vertices, indices) = collider.inner_shape.to_trimesh(RESOLUTION);
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             TypedShape::RoundConvexPolyhedron(collider) => {
                 let (vertices, indices) = collider.inner_shape.to_trimesh();
                 let trimesh = TriMesh::new(trimesh_to_world(vertices), indices);
                 vec![intersection_to_board(
                     trimesh.intersection_with_local_plane(&up_axis, shift, f32::EPSILON),
                 )]
-            }
+            },
             _ => {
                 warn!("Collider not supported for obstacle generation");
                 vec![]
-            }
+            },
         }
         .into_iter()
         .flatten()

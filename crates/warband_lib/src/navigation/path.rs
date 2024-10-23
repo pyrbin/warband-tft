@@ -1,15 +1,19 @@
 //! TODO: Should try out NavMesh pathfinding instead of cell-based.
 
+use std::sync::{Arc, RwLock};
+
 use bevy::tasks::AsyncComputeTaskPool;
 use hexx::{algorithms::a_star, Hex};
 
+use super::agent::{self};
 use crate::{
-    board::{self, occupied::Occupant, Location},
+    board::{
+        occupied::Occupant,
+        Location,
+        {self},
+    },
     prelude::*,
 };
-use std::sync::{Arc, RwLock};
-
-use super::agent::{self};
 
 #[derive(Component, Clone, Copy, Default, PartialEq, Eq, Hash, Debug, From, Reflect)]
 pub enum Destination {
@@ -45,7 +49,7 @@ pub(super) fn target_location(
                     } else {
                         DestinationLocation::None
                     }
-                }
+                },
                 Destination::None => DestinationLocation::None,
             };
 
@@ -186,12 +190,10 @@ pub(super) fn poll(mut commands: Commands, computing: Query<(Entity, &FindingPat
                 let skip = if path.len() < 2 { 0 } else { 1 };
                 commands
                     .entity(entity)
-                    .insert(Path(
-                        path.iter()
+                    .insert(Path(path.iter()
                             .copied()
                             .skip(skip) // skip start hex
-                            .collect(),
-                    ))
+                            .collect()))
                     .remove::<FindingPath>();
             }
         }

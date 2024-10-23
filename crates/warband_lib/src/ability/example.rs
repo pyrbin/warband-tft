@@ -1,14 +1,21 @@
-use crate::{
-    prelude::*,
-    unit::{combat::DamageEvent, stats::Health},
-};
-
 use super::{
     action::{Action, ActionInput, Prop, Targets},
     cast::Mana,
     event::{AbilityEventType, Actions, CreateActionBuilder, OnCast, OnTrigger},
     projectile::ProjectileType,
-    AbilityBundle, AbilityExt, AbilityId, AbilityType, Element, Radius, Speed, Target, TargetTeam,
+    AbilityBundle,
+    AbilityExt,
+    AbilityId,
+    AbilityType,
+    Element,
+    Radius,
+    Speed,
+    Target,
+    TargetTeam,
+};
+use crate::{
+    prelude::*,
+    unit::{combat::DamageEvent, stats::Health},
 };
 
 pub(super) fn plugin(app: &mut App) {

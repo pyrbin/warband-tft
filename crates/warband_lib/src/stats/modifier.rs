@@ -1,6 +1,5 @@
-use crate::prelude::*;
-
 use super::StatSystems;
+use crate::prelude::*;
 
 pub(super) fn plugin<M: Modifier<S> + Component, S: Stat + Component>(app: &mut App) {
     app.add_systems(PostUpdate, changed::<M, S>.in_set(StatSystems::Dirty));
@@ -132,7 +131,7 @@ pub(super) fn modifies_changed<S: Stat>(
                     for entity in entities.iter() {
                         add_dirty_stat(entity)
                     }
-                }
+                },
             }
         }
     }
@@ -165,14 +164,14 @@ fn changed<M: Modifier<S>, S: Stat>(
                 for entity in entities.iter() {
                     add_dirty_stat(*entity);
                 }
-            }
+            },
             None => {
                 if let Some(parent) = maybe_parent {
                     add_dirty_stat(parent.get())
                 }
 
                 add_dirty_stat(entity);
-            }
+            },
         }
     }
 }
@@ -210,14 +209,14 @@ fn removed<M: Modifier<S>, S: Stat>(
             for entity in entities.iter() {
                 add_dirty_stat(entity);
             }
-        }
+        },
         None => {
             if let Some(parent) = maybe_parent {
                 add_dirty_stat(&parent.get());
             }
 
             add_dirty_stat(&entity);
-        }
+        },
     }
 }
 
@@ -255,14 +254,14 @@ fn accumulate<M: Modifier<S>, S: Stat>(
                 for entity in entities.iter() {
                     apply_modifier(entity);
                 }
-            }
+            },
             None => {
                 if let Some(parent) = maybe_parent {
                     apply_modifier(&parent.get());
                 }
 
                 apply_modifier(&entity);
-            }
+            },
         }
     }
 }

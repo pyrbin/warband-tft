@@ -51,7 +51,7 @@ fn despawn_timer(
             Despawn::Delay(ref mut dur) => {
                 *dur -= time.delta_seconds();
                 *dur <= 0.0
-            }
+            },
             Despawn::WaitFrames(ref mut frame) => {
                 if *frame == 0 {
                     true
@@ -59,7 +59,7 @@ fn despawn_timer(
                     *frame -= 1;
                     *frame == 0
                 }
-            }
+            },
         };
         if despawn {
             commands

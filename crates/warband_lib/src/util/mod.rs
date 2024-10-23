@@ -1,5 +1,6 @@
 pub mod ballistics_math;
 pub mod bevy_ext;
+pub mod configure;
 pub mod math_ext;
 pub mod pipe;
 
@@ -12,7 +13,7 @@ macro_rules! single {
                 #[cfg(debug_assertions)]
                 info!("no single result found");
                 return;
-            }
+            },
         }
     };
 }
@@ -26,7 +27,7 @@ macro_rules! single_mut {
                 #[cfg(debug_assertions)]
                 info!("no single result found");
                 return;
-            }
+            },
         }
     };
 }

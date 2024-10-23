@@ -1,3 +1,7 @@
+use bevy_spatial::SpatialAccess;
+use big_brain::prelude::*;
+
+use super::{combat::DamageEvent, Allegiance, UnitTree};
 use crate::{
     navigation::{
         agent::{self},
@@ -5,10 +9,6 @@ use crate::{
     },
     prelude::*,
 };
-use bevy_spatial::SpatialAccess;
-use big_brain::prelude::*;
-
-use super::{combat::DamageEvent, Allegiance, UnitTree};
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(Target);
@@ -98,7 +98,7 @@ fn seek(
                 **destination_range = seek.attack_range;
                 *state = ActionState::Executing;
                 *pathing = agent::Pathing::Active;
-            }
+            },
             ActionState::Executing => {
                 **destination_range = seek.attack_range;
                 let Some((_, target_entity)) = kd_tree
@@ -143,14 +143,14 @@ fn seek(
                     *state = ActionState::Success;
                     continue;
                 }
-            }
+            },
             ActionState::Cancelled => {
                 *state = ActionState::Failure;
-            }
+            },
             ActionState::Failure | ActionState::Success => {
                 *pathing = agent::Pathing::Inactive;
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 }
@@ -196,7 +196,7 @@ fn attack(
                 }
 
                 *state = ActionState::Executing;
-            }
+            },
             ActionState::Executing => {
                 let Target::Entity(target_entity) = target else {
                     *state = ActionState::Failure;
@@ -208,12 +208,12 @@ fn attack(
                     target: *target_entity,
                     damage: attack.damage * delta,
                 });
-            }
+            },
             ActionState::Cancelled => {
                 *state = ActionState::Failure;
-            }
-            ActionState::Failure | ActionState::Success => {}
-            _ => {}
+            },
+            ActionState::Failure | ActionState::Success => {},
+            _ => {},
         }
     }
 }

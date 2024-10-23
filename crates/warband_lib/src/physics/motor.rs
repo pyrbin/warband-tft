@@ -1,8 +1,7 @@
 use core::f32;
 
-use crate::prelude::*;
-
 use super::Layer;
+use crate::prelude::*;
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MotorSystems {
@@ -166,22 +165,22 @@ fn movement(
                 .clamp_length_min(move_speed * ARRIVE_SPEED_MOD);
             linear_velocity.x += velocity.x;
             linear_velocity.z += velocity.z;
-        }
+        },
         MovementAction::Teleport(translation) => {
             linear_velocity.x = 0.0;
             linear_velocity.z = 0.0;
             position.0.x = translation.x;
             position.0.z = translation.z;
-        }
+        },
         MovementAction::Direction(dir) => {
             linear_velocity.x += dir.x * move_speed;
             linear_velocity.z += dir.y * move_speed;
-        }
+        },
         MovementAction::Jump => {
             if grounded {
                 linear_velocity.0.y = 5.0;
             }
-        }
+        },
     }
 }
 

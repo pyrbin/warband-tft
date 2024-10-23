@@ -1,12 +1,11 @@
 use hexx::Hex;
 
+use super::path::{Destination, DestinationLocation, Path};
 use crate::{
     board::{occupied::Occupant, Board, Location, Occupied},
     physics::motor::{CharacterMotor, MovementAction},
     prelude::*,
 };
-
-use super::path::{Destination, DestinationLocation, Path};
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -188,14 +187,14 @@ pub(super) fn on_path_event(trigger: Trigger<PathingEvent>, mut commands: Comman
                 .remove::<Path>()
                 .remove::<Waypoint>()
                 .insert(DestinationReached);
-        }
+        },
         PathingEvent::NeedsUpdate => {
             entity_commands
                 .remove::<Path>()
                 .remove::<Waypoint>()
                 .remove::<DestinationReached>()
                 .insert(Dirty::<Path>::default());
-        }
+        },
     }
 }
 

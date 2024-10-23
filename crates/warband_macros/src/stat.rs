@@ -1,9 +1,10 @@
-use super::CRATE_IDENT;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use syn::{DeriveInput, Expr, ExprLit, Fields, Lit};
+
+use super::CRATE_IDENT;
 
 pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
     let crate_ident = match crate_name(CRATE_IDENT)
@@ -13,7 +14,7 @@ pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
             quote!( #ident::stats::stat )
-        }
+        },
     };
 
     let name = &ast.ident;
@@ -65,7 +66,7 @@ fn extract_stat_value_field(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
                     let index = syn::Index::from(0);
                     quote!(#index)
-                }
+                },
                 // Handle named fields that might be annotated or using single named field
                 Fields::Named(fields_named) => fields_named
                     .named
@@ -85,7 +86,7 @@ fn extract_stat_value_field(ast: &DeriveInput) -> proc_macro2::TokenStream {
                     }),
                 _ => panic!("Stat can only be derived for structs with exactly one field"),
             }
-        }
+        },
         _ => panic!("Stat can only be derived for structs"),
     }
 }

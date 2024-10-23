@@ -1,9 +1,10 @@
-use super::CRATE_IDENT;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use syn::{Ident, ItemFn};
+
+use super::CRATE_IDENT;
 
 pub fn impl_spawner(spawner_ty: &syn::Path, input: &ItemFn) -> TokenStream {
     let fn_name = &input.sig.ident;
@@ -14,7 +15,7 @@ pub fn impl_spawner(spawner_ty: &syn::Path, input: &ItemFn) -> TokenStream {
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
             quote!( #ident::core::spawn )
-        }
+        },
     };
 
     let expanded = quote! {

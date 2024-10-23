@@ -1,13 +1,12 @@
 use ballistics_math::aim_projectile_straight_fallback;
 use bevy::ecs::entity::EntityHashSet;
 
+use super::Speed;
 use crate::{
     physics,
     prelude::*,
     unit::{Allegiance, Unit},
 };
-
-use super::Speed;
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(

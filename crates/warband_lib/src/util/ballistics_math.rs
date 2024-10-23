@@ -1,5 +1,6 @@
-use glam::Vec3;
 use std::f32;
+
+use glam::Vec3;
 
 // if there is no trajectory to target, will shoot straight in their direction
 pub fn aim_projectile_straight_fallback(

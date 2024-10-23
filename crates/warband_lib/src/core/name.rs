@@ -1,5 +1,6 @@
-use crate::prelude::*;
 use std::borrow::Cow;
+
+use crate::prelude::*;
 
 // Implements extension methods on `Name` to create prefixed names for different defined game object
 // types. Makes it easier to distiguish entities when taking a quick glance at the hierarchy.

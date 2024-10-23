@@ -5,6 +5,9 @@ bin := "warband"
 watch:
     cargo watch --features 'dev' -q -c -x 'run -- --bin {{bin}}'
 
+watch-check:
+    cargo watch --features 'dev' -q -c -x check
+
 dev:
     cargo run --bin {{bin}} --features 'dev'
 

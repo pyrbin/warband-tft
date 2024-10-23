@@ -1,8 +1,7 @@
 use hexx::Hex;
 
-use crate::{navigation::agent::Waypoint, prelude::*};
-
 use super::Board;
+use crate::{navigation::agent::Waypoint, prelude::*};
 
 #[derive(Component, Default, PartialEq, Eq, Reflect)]
 #[reflect(Component)]

@@ -2,17 +2,21 @@ use bevy_mod_picking::prelude::*;
 
 use crate::{
     ability::{
-        self,
         cast::{AbilityCaster, AbilitySlots, TryAbility},
         example::Fireball,
         AbilityData,
+        {self},
     },
     board,
     navigation::{agent, path},
-    physics::motor::{self, Movement},
+    physics::motor::{
+        Movement,
+        {self},
+    },
     player::camera::MainCamera,
     prelude::*,
-    unit, AppState,
+    unit,
+    AppState,
 };
 
 pub fn plugin(app: &mut App) {

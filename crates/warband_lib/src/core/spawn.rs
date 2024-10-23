@@ -1,10 +1,11 @@
+use std::marker::PhantomData;
+
 use bevy::ecs::{
     system::{EntityCommands, SystemId},
     world::Command,
 };
 
 use crate::prelude::*;
-use std::marker::PhantomData;
 
 #[derive(Resource)]
 pub struct SpawnSystemId<I, O = ()> {
@@ -41,7 +42,7 @@ where
                 world
                     .get_resource::<SpawnSystemId<I, O>>()
                     .expect("it was just inserted")
-            }
+            },
         };
 
         if let Err(err) = world.run_system_with_input(system.id, (self.entity, self.input)) {

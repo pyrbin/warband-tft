@@ -1,7 +1,6 @@
 use core::fmt;
 use std::{fmt::Display, ops::Deref};
 
-use crate::prelude::*;
 use bevy::{
     ecs::{
         component::{ComponentHooks, ComponentId, StorageType},
@@ -12,34 +11,7 @@ use bevy::{
 use enum_dispatch::enum_dispatch;
 
 use super::Target;
-
-pub(super) fn plugin<T: AbilityEventType>(app: &mut App)
-where
-    T: Into<AbilityEvent>,
-{
-    app_register_types!(T, Actions<T>);
-
-    app.observe(propagate::<T>);
-}
-
-pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
-    trigger: Trigger<T>,
-    ability: Query<&Actions<T>>,
-    mut commands: Commands,
-) {
-    let entity = trigger.entity();
-    let event = trigger.event();
-
-    if event.ability() != entity {
-        return;
-    }
-
-    let action = or_return_quiet!(ability.get(entity));
-    for entity in action.iter() {
-        let event: AbilityEvent = event.clone().into();
-        commands.trigger_targets(event, *entity);
-    }
-}
+use crate::prelude::*;
 
 #[derive(Event, Clone, Reflect, Debug)]
 #[enum_dispatch(AbilityEventType)]
@@ -73,6 +45,33 @@ pub(crate) trait AbilityEventType:
     fn ability(&self) -> Entity;
     fn caster(&self) -> Entity;
     fn target(&self) -> Target;
+}
+
+impl<T: AbilityEventType + Into<AbilityEvent>> Configure for T {
+    fn configure(app: &mut App) {
+        app_register_types!(T, Actions<T>);
+
+        app.observe(propagate::<T>);
+    }
+}
+
+pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
+    trigger: Trigger<T>,
+    ability: Query<&Actions<T>>,
+    mut commands: Commands,
+) {
+    let entity = trigger.entity();
+    let event = trigger.event();
+
+    if event.ability() != entity {
+        return;
+    }
+
+    let action = or_return_quiet!(ability.get(entity));
+    for entity in action.iter() {
+        let event: AbilityEvent = event.clone().into();
+        commands.trigger_targets(event, *entity);
+    }
 }
 
 #[derive(Event, Clone, Reflect, Debug)]

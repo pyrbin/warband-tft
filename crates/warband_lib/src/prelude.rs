@@ -1,16 +1,6 @@
 #![allow(unused_imports)]
-pub(crate) use crate::{
-    cleanup::*,
-    core::*,
-    despawn::*,
-    for_in_match,
-    name::*,
-    previous::*,
-    required_component::*,
-    single, single_mut,
-    stats::{pool::Pool, stat::Stat},
-    util::{bevy_ext::*, math_ext::*, *},
-};
+pub(crate) use std::{default, f32::consts::PI, marker::PhantomData, sync::Arc};
+
 pub(crate) use anyhow::{anyhow, bail, ensure, Context, Error as AnyError, Result as AnyResult};
 pub(crate) use avian3d::prelude::*;
 pub(crate) use bevy::{
@@ -29,10 +19,27 @@ pub(crate) use derive_more::{Display, From};
 pub(crate) use itertools::Itertools;
 pub(crate) use rand::prelude::*;
 pub(crate) use smallvec::SmallVec;
-pub(crate) use std::{default, f32::consts::PI, marker::PhantomData, sync::Arc};
 pub(crate) use thiserror::Error;
 pub(crate) use tiny_bail::prelude::*;
 pub(crate) use warband_macros::*;
 
 #[cfg(feature = "dev")]
 pub(crate) use crate::dev::gizmos_ext::GizmosExt;
+pub(crate) use crate::{
+    cleanup::*,
+    core::*,
+    despawn::*,
+    for_in_match,
+    name::*,
+    previous::*,
+    required_component::*,
+    single,
+    single_mut,
+    stats::{pool::Pool, stat::Stat},
+    util::{
+        bevy_ext::*,
+        configure::{AppExtConfigure, Configure},
+        math_ext::*,
+        *,
+    },
+};

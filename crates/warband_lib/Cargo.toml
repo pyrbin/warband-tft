@@ -1,8 +1,8 @@
 [package]
 name = "warband_lib"
-version = "0.1.0"
+version = { workspace = true }
 authors = ["pyrbin <git@pyrbin>"]
-edition = "2021"
+edition.workspace = true
 
 [features]
 dev = [

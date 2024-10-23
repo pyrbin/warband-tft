@@ -1,8 +1,7 @@
 use hexx::Hex;
 
-use crate::{navigation::agent::Agent, prelude::*};
-
 use super::{occupied::GetPolygon, Board, BoardSettings, Cell, Location};
+use crate::{navigation::agent::Agent, prelude::*};
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]

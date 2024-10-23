@@ -1,7 +1,7 @@
-use crate::prelude::*;
+pub use bevy_dev_console::prelude::custom_log_layer;
 use bevy_dev_console::{builtin_parser::Environment, prelude::*, register};
 
-pub use bevy_dev_console::prelude::custom_log_layer;
+use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins(DevConsolePlugin);

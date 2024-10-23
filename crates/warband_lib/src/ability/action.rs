@@ -2,12 +2,11 @@ use core::fmt;
 
 use bevy::ecs::{system::SystemId, world::Command};
 
-use crate::prelude::*;
-
 use super::{
     event::{AbilityEvent, AbilityEventType},
     Target,
 };
+use crate::prelude::*;
 
 pub(super) fn plugin<T: AbilityAction<Data: GetTypeRegistration> + GetTypeRegistration>(
     app: &mut App,
@@ -182,7 +181,7 @@ impl<T: AbilityAction> Command for AbilityActionCommand<T> {
                 world
                     .get_resource::<T::Provider>()
                     .expect("it was just inserted")
-            }
+            },
         };
 
         if let Err(err) = world.run_system_with_input(system.id(), self.input) {

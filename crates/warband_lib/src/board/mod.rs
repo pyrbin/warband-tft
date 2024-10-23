@@ -1,7 +1,8 @@
-use crate::{prelude::*, AppState};
 use bevy_inspector_egui::prelude::*;
 use bevy_mod_picking::prelude::*;
 use hexx::*;
+
+use crate::{prelude::*, AppState};
 
 pub mod footprint;
 pub mod location;

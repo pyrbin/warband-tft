@@ -165,11 +165,11 @@ fn driver_follow(
                 if let Ok(transform) = transforms.get(*entity) {
                     rig_transform.translation = transform.translation;
                 }
-            }
+            },
             Follow::Position(position) => {
                 rig_transform.translation = *position;
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 }

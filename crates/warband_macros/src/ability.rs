@@ -1,10 +1,11 @@
-use super::CRATE_IDENT;
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use syn::{Data, DeriveInput, Ident, PathArguments, Type};
+
+use super::CRATE_IDENT;
 
 pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
     const ACTION_ATTRIBUTE_IDENT: &str = "ability_action";
@@ -18,7 +19,7 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
             quote!( #ident::ability::action )
-        }
+        },
     };
 
     let generics = &ast.generics;
@@ -187,7 +188,7 @@ pub(super) fn impl_ability_derive(ast: &DeriveInput) -> TokenStream {
         FoundCrate::Name(name) => {
             let ident = Ident::new(&name, Span::call_site());
             quote!( #ident::ability )
-        }
+        },
     };
 
     let ability_id = opts.id;

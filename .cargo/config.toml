@@ -1,8 +1,11 @@
 [registries.crates.io]
 protocol = "sparse"
 
-[unstable]
-codegen-backend = true
+# [unstable]
+# codegen-backend = true
+
+# [profile.dev]
+# codegen-backend = "cranelift"
 
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
@@ -11,7 +14,7 @@ runner = "wasm-server-runner"
 linker = "rust-lld.exe"
 rustflags = [
     "-Zshare-generics=off", # (Nightly)
-    "-Zthreads=0", # (Nightly) Use improved multithreading with the recommended amount of threads.
+    "-Zthreads=8", # (Nightly) Use improved multithreading with the recommended amount of threads.
 ]
 
 [target.x86_64-unknown-linux-gnu]

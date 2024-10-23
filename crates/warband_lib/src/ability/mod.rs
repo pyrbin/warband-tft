@@ -4,7 +4,13 @@ use std::borrow::Cow;
 use action::AbilityAction;
 use bevy::ecs::component::{ComponentHooks, StorageType};
 use cast::{
-    cast_ability, try_ability, AbilitySlot, AbilitySlotEvent, AbilitySlots, CastAbility, TryAbility,
+    cast_ability,
+    try_ability,
+    AbilitySlot,
+    AbilitySlotEvent,
+    AbilitySlots,
+    CastAbility,
+    TryAbility,
 };
 use enumflags2::BitFlags;
 use event::{AbilityEventType, OnCast, OnTrigger};
@@ -45,7 +51,9 @@ pub(super) fn plugin(app: &mut App) {
         FromAbility,
         Caster,
         TryAbility,
-        CastAbility
+        CastAbility,
+        AbilitySlot,
+        AbilitySlots
     );
 
     register_stats!(app, Interval, Duration, Radius, Speed);
@@ -59,7 +67,8 @@ pub(super) fn plugin(app: &mut App) {
     app.add_plugins(example::plugin);
 
     app.add_plugins(projectile::plugin);
-    app.add_plugins((event::plugin::<OnCast>, event::plugin::<OnTrigger>));
+
+    // app.configure::<(event::OnCast, event::OnTrigger)>();
 
     app.add_systems(Update, (try_ability, cast_ability));
     app.add_systems(Update, projectile_events);
@@ -282,7 +291,7 @@ fn cast(
     match ability_type {
         AbilityType::Area => {
             todo!("implement area");
-        }
+        },
         AbilityType::Projectile => {
             let mut lens = ability_args.transmute_lens::<ProjectileArguments>();
             let projectile_args = lens.query();
@@ -302,7 +311,7 @@ fn cast(
                     origin: caster_position,
                 })
                 .insert((FromAbility(entity), Name::projectile("example spell")));
-        }
+        },
     }
 }
 
