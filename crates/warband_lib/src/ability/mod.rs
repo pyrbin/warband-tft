@@ -1,19 +1,22 @@
 use core::panic;
 use std::borrow::Cow;
 
-use action::AbilityAction;
 use bevy::ecs::component::{ComponentHooks, StorageType};
 use cast::{
     cast_ability,
     try_ability,
     AbilitySlot,
     AbilitySlotEvent,
+    AbilitySlotStatus,
     AbilitySlots,
+    AbilitySource,
     CastAbility,
+    EquippedAbility,
+    Mana,
     TryAbility,
 };
 use enumflags2::BitFlags;
-use event::{AbilityEventType, OnCast, OnTrigger};
+use event::AbilityEventType;
 use projectile::{ProjectileEvent, ProjectileType, TrackingProjectile};
 use spawn::SpawnExtensions;
 
@@ -25,7 +28,7 @@ pub mod event;
 pub mod example;
 pub mod projectile;
 
-use crate::{for_in_match, prelude::*, register_stats, stats::stat, unit::Allegiance};
+use crate::{prelude::*, unit::Allegiance};
 
 // [ ] Effects
 // [/] Ability Registration
@@ -53,68 +56,57 @@ pub(super) fn plugin(app: &mut App) {
         TryAbility,
         CastAbility,
         AbilitySlot,
-        AbilitySlots
+        AbilitySlots,
+        AbilitySlotEvent,
+        AbilitySource,
+        AbilitySlotStatus,
+        EquippedAbility
     );
 
-    register_stats!(app, Interval, Duration, Radius, Speed);
+    app.init_resource::<AbilityRegistry>();
 
     app.add_event::<TryAbility>();
     app.add_event::<CastAbility>();
     app.add_event::<AbilitySlotEvent>();
 
-    app.init_resource::<AbilityRegistry>();
-
     app.add_plugins(example::plugin);
-
     app.add_plugins(projectile::plugin);
 
-    // app.configure::<(event::OnCast, event::OnTrigger)>();
+    app.configure::<(Interval, Duration, Radius, Speed, Mana)>();
+    app.configure::<(event::OnCast, event::OnTrigger)>();
+    app.configure::<(AbilitySlots, AbilitySlot)>();
 
     app.add_systems(Update, (try_ability, cast_ability));
     app.add_systems(Update, projectile_events);
 
     app.observe(cast);
 
-    app.observe(AbilitySlots::on_add)
-        .observe(AbilitySlots::on_remove);
-    app.observe(AbilitySlot::on_add);
-
     app.add_systems(
         Update,
         (
-            cast::total_slot_mana,
-            cast::slot_mana,
-            cast::slot_mana_modifier,
+            (
+                cast::slot_mana,
+                cast::total_slot_mana,
+                cast::slot_mana_modifier,
+            )
+                .chain(),
             cast::ability_slot_events,
         ),
     );
 }
 
-pub trait AbilityExt {
-    fn register_ability<T: AbilityData>(&mut self) -> &mut Self;
-    fn register_ability_action<T: AbilityAction>(&mut self) -> &mut Self;
-}
-
-impl AbilityExt for App {
-    fn register_ability<T: AbilityData>(&mut self) -> &mut Self {
-        self.world_mut()
-            .resource_scope(|_, mut abilities: Mut<'_, AbilityRegistry>| {
-                let id = T::ID;
-                let bundle: Box<dyn BundleBox> = Box::new(T::bundle().clone());
-                abilities.0.try_insert(id, bundle).unwrap_or_else(|err| {
-                    panic!(
-                        "Failed to insert ability with ID {:?} into registry",
-                        err.entry.key()
-                    );
-                });
+pub(crate) fn configure_ability<T: AbilityData>(app: &mut App) {
+    app.world_mut()
+        .resource_scope(|_, mut abilities: Mut<'_, AbilityRegistry>| {
+            let id = T::ID;
+            let bundle: Box<dyn BundleBox> = Box::new(T::bundle().clone());
+            abilities.0.try_insert(id, bundle).unwrap_or_else(|err| {
+                panic!(
+                    "Failed to insert ability with ID {:?} into registry",
+                    err.entry.key()
+                );
             });
-        self
-    }
-
-    fn register_ability_action<T: AbilityAction>(&mut self) -> &mut Self {
-        self.add_plugins(action::plugin::<T>);
-        self
-    }
+        });
 }
 
 #[derive(Reflect, Resource, DerefMut, Deref, Default)]
@@ -321,8 +313,8 @@ fn projectile_events(
     projectiles: Query<&FromAbility>,
     abilities: Query<&Caster, With<AbilityId>>,
 ) {
-    for_in_match!(events.read(),
-        ProjectileEvent::Hit { projectile, target }  => {
+    for event in events.read() {
+        if let ProjectileEvent::Hit { projectile, target } = event {
             let ability = or_continue!(projectiles.get(*projectile));
             let caster = or_continue!(abilities.get(**ability));
             commands.trigger_targets(
@@ -334,7 +326,6 @@ fn projectile_events(
                 },
                 **ability,
             );
-        },
-        _ => {}
-    );
+        }
+    }
 }

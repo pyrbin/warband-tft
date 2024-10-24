@@ -10,20 +10,6 @@ use crate::{
     stats::modifier::{Flat, Modifies, Mult},
 };
 
-#[derive(Event, Reflect)]
-pub struct TryAbility {
-    pub caster: Entity,
-    pub ability: Entity,
-    pub target: Target,
-}
-
-#[derive(Event, Reflect)]
-pub struct CastAbility {
-    pub caster: Entity,
-    pub ability: Entity,
-    pub target: Target,
-}
-
 #[derive(Component, Reflect)]
 pub(crate) struct AbilityCaster;
 
@@ -45,33 +31,57 @@ impl AbilitySlots {
     pub(crate) fn get(&self) -> Entity {
         self.0
     }
+}
 
-    pub(super) fn on_add(
-        trigger: Trigger<OnAdd, AbilitySlots>,
-        mut commands: Commands,
-        mut slots: Query<&mut AbilitySlots>,
-    ) {
-        const NAME: &str = "ability slots";
-        let entity = trigger.entity();
-        let container = commands
-            .spawn_empty()
-            .insert(Name::new(NAME))
-            .insert(Flat::<Mana>::default())
-            .insert(Modifies::Single(entity))
-            .id();
+impl Configure for AbilitySlots {
+    fn configure(app: &mut App) {
+        app.observe(
+            |trigger: Trigger<OnAdd, AbilitySlots>,
+             mut commands: Commands,
+             mut slots: Query<&mut AbilitySlots>| {
+                const NAME: &str = "ability slots";
+                let entity = trigger.entity();
+                let container = commands
+                    .spawn_empty()
+                    .insert(Name::new(NAME))
+                    .insert(Flat::<Mana>::default())
+                    .insert(Modifies::Single(entity))
+                    .id();
 
-        let mut slots = or_return!(slots.get_mut(entity));
-        slots.0 = container;
+                let mut slots = or_return!(slots.get_mut(entity));
+                slots.0 = container;
+            },
+        );
+
+        app.observe(
+            |trigger: Trigger<OnRemove, AbilitySlots>,
+             mut commands: Commands,
+             slots: Query<&AbilitySlots>| {
+                let entity = trigger.entity();
+                let slots = or_return!(slots.get(entity));
+                commands.entity(slots.0).despawn_recursive();
+            },
+        );
     }
+}
 
-    pub(super) fn on_remove(
-        trigger: Trigger<OnRemove, AbilitySlots>,
-        mut commands: Commands,
-        slots: Query<&AbilitySlots>,
-    ) {
-        let entity = trigger.entity();
-        let slots = or_return!(slots.get(entity));
-        commands.entity(slots.0).despawn_recursive();
+#[derive(Component, Reflect)]
+pub(crate) struct AbilitySlot;
+
+impl Configure for AbilitySlot {
+    fn configure(app: &mut App) {
+        app.observe(
+            |trigger: Trigger<OnAdd, AbilitySlot>, mut commands: Commands| {
+                let entity = trigger.entity();
+                commands.entity(entity).insert((
+                    Name::new("ability slot"),
+                    Mana::pool(0.0),
+                    Mult::<Mana>::default(),
+                    Flat::<Mana>::default(),
+                    AbilitySlotStatus::UnsufficientMana,
+                ));
+            },
+        );
     }
 }
 
@@ -138,21 +148,6 @@ impl Command for AbilitySlotsCommand {
                 ability: AbilitySource::AbilityId(ability),
             });
         }
-    }
-}
-
-#[derive(Component, Reflect)]
-pub(crate) struct AbilitySlot;
-
-impl AbilitySlot {
-    pub(super) fn on_add(trigger: Trigger<OnAdd, AbilitySlot>, mut commands: Commands) {
-        let entity = trigger.entity();
-        commands.entity(entity).insert((
-            Mana::pool(0.0),
-            Mult::<Mana>::default(),
-            Flat::<Mana>::default(),
-            AbilitySlotStatus::UnsufficientMana,
-        ));
     }
 }
 
@@ -229,13 +224,13 @@ pub(super) fn slot_mana(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Reflect)]
 pub(crate) enum AbilitySource {
     Entity(Entity),
     AbilityId(AbilityId),
 }
 
-#[derive(Event)]
+#[derive(Event, Reflect)]
 pub(crate) enum AbilitySlotEvent {
     AddAbilityToSlot {
         caster: Entity,
@@ -257,35 +252,28 @@ pub(super) fn ability_slot_events(
     mut commands: Commands,
     ability_slots: Query<&AbilitySlots>,
 ) {
-    // TODO: make sure to reset Flat<Mana> on Slot
-
-    for_in_match!(events.read(),
-        AbilitySlotEvent::PushAbility {
-            caster,
-            ability,
-        } => {
+    for event in events.read() {
+        if let AbilitySlotEvent::PushAbility { caster, ability } = event {
             let ability = match ability.clone() {
                 AbilitySource::Entity(entity) => entity,
                 AbilitySource::AbilityId(id) => {
-                    commands
-                        .spawn_empty()
-                        .insert(super::Ability(id))
-                        .id()
-                }
+                    commands.spawn_empty().insert(super::Ability(id)).id()
+                },
             };
 
             let ability_slots = or_return!(ability_slots.get(*caster));
-            let ability_slot = commands.spawn_empty().insert((
-                AbilitySlot,
-                Caster(*caster),
-                EquippedAbility(ability)
-            )).add_child(ability).id();
+            let ability_slot = commands
+                .spawn_empty()
+                .insert((AbilitySlot, Caster(*caster), EquippedAbility(ability)))
+                .add_child(ability)
+                .id();
 
             commands.entity(**ability_slots).add_child(ability_slot);
-            commands.entity(ability).insert((Slot(ability_slot), Caster(*caster)));
-        },
-        _ => {}
-    )
+            commands
+                .entity(ability)
+                .insert((Slot(ability_slot), Caster(*caster)));
+        }
+    }
 }
 
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]
@@ -293,6 +281,21 @@ pub(super) fn ability_slot_events(
 pub(crate) struct Mana(pub(crate) f32);
 
 // TODO: convert to command
+
+#[derive(Event, Reflect)]
+pub struct TryAbility {
+    pub caster: Entity,
+    pub ability: Entity,
+    pub target: Target,
+}
+
+#[derive(Event, Reflect)]
+pub struct CastAbility {
+    pub caster: Entity,
+    pub ability: Entity,
+    pub target: Target,
+}
+
 pub(super) fn try_ability(
     mut events: EventReader<TryAbility>,
     mut cast_ability: EventWriter<CastAbility>,

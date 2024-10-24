@@ -8,18 +8,34 @@ use super::{
 };
 use crate::prelude::*;
 
-pub(super) fn plugin<T: AbilityAction<Data: GetTypeRegistration> + GetTypeRegistration>(
-    app: &mut App,
-) {
+pub(crate) trait AbilityAction:
+    Reflect + FromReflect + GetTypeRegistration + TypePath + Clone + Send + Sync + 'static
+{
+    type Provider: ActionSystemIdProvider<Self> + FromWorld;
+    type Data: Reflect
+        + From<Self>
+        + FromReflect
+        + GetTypeRegistration
+        + TypePath
+        + Default
+        + Clone
+        + Send
+        + Sync
+        + 'static;
+}
+
+pub(crate) fn configure_action<T: AbilityAction>(app: &mut App) {
     app_register_types!(T, Action<T>, ActionInput<T>);
+
     {
         let world = app.world_mut();
         world.init_component::<Action<T>>();
     }
-    app.observe(action::<T>);
+
+    app.observe(action_trigger::<T>);
 }
 
-pub(super) fn action<T: AbilityAction>(
+fn action_trigger<T: AbilityAction>(
     trigger: Trigger<AbilityEvent>,
     action: Query<&Action<T>>,
     transforms: Query<&GlobalTransform>,
@@ -61,23 +77,7 @@ pub(super) fn action<T: AbilityAction>(
         }));
     }
 
-    // TODO: trigger many (radius)
-}
-
-pub(crate) trait AbilityAction:
-    Reflect + FromReflect + GetTypeRegistration + TypePath + Clone + Send + Sync + 'static
-{
-    type Provider: ActionSystemIdProvider<Self> + FromWorld;
-    type Data: Reflect
-        + From<Self>
-        + FromReflect
-        + GetTypeRegistration
-        + TypePath
-        + Default
-        + Clone
-        + Send
-        + Sync
-        + 'static;
+    // if targets.contains(Targets::RADIUS)
 }
 
 bitflags::bitflags! {

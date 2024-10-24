@@ -1,29 +1,20 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span};
-use proc_macro_crate::{crate_name, FoundCrate};
+use proc_macro2::Ident;
 use quote::quote;
 use syn::{DeriveInput, Expr, ExprLit, Fields, Lit};
 
 use super::CRATE_IDENT;
 
 pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
-    let crate_ident = match crate_name(CRATE_IDENT)
-        .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
-    {
-        FoundCrate::Itself => quote!(crate::stats::stat),
-        FoundCrate::Name(name) => {
-            let ident = Ident::new(&name, Span::call_site());
-            quote!( #ident::stats::stat )
-        },
-    };
-
     let name = &ast.ident;
+    let crate_ident = crate::util::crate_ident(CRATE_IDENT, "::stats::stat");
+
     let generics = &ast.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let value_field = extract_stat_value_field(ast);
     let (clamp_fn, round_fn) = extract_clamp_and_round_functions(ast);
 
-    let gen = quote! {
+    let expanded = quote! {
         impl #impl_generics #crate_ident::Stat for #name #ty_generics #where_clause {
             fn new(value: f32) -> Self {
                 Self { #value_field: value, ..Default::default() }
@@ -54,8 +45,16 @@ pub(super) fn impl_stat_derive(ast: &DeriveInput) -> TokenStream {
                 &self.#value_field
             }
         }
+
+        #[automatically_derived]
+        impl #impl_generics Configure for #name #ty_generics #where_clause {
+            fn configure(app: &mut App) {
+                #crate_ident::configure_stat::<#name #ty_generics>(app);
+            }
+        }
     };
-    gen.into()
+
+    TokenStream::from(expanded)
 }
 
 fn extract_stat_value_field(ast: &DeriveInput) -> proc_macro2::TokenStream {

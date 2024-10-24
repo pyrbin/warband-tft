@@ -47,12 +47,10 @@ pub(crate) trait AbilityEventType:
     fn target(&self) -> Target;
 }
 
-impl<T: AbilityEventType + Into<AbilityEvent>> Configure for T {
-    fn configure(app: &mut App) {
-        app_register_types!(T, Actions<T>);
+pub(crate) fn configure_ability_event<T: AbilityEventType + Into<AbilityEvent>>(app: &mut App) {
+    app_register_types!(T, Actions<T>);
 
-        app.observe(propagate::<T>);
-    }
+    app.observe(propagate::<T>);
 }
 
 pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
@@ -74,23 +72,16 @@ pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
     }
 }
 
-#[derive(Event, Clone, Reflect, Debug)]
+#[derive(AbilityEvent, Event, Clone, Reflect, Debug)]
 pub(crate) struct OnCast {
+    #[ability_event(caster)]
     pub(crate) caster: Entity,
-    pub(crate) target: Target,
-    pub(crate) ability: Entity,
-}
 
-impl AbilityEventType for OnCast {
-    fn ability(&self) -> Entity {
-        self.ability
-    }
-    fn caster(&self) -> Entity {
-        self.caster
-    }
-    fn target(&self) -> Target {
-        self.target
-    }
+    #[ability_event(target)]
+    pub(crate) target: Target,
+
+    #[ability_event(ability)]
+    pub(crate) ability: Entity,
 }
 
 impl fmt::Display for OnCast {
@@ -99,29 +90,23 @@ impl fmt::Display for OnCast {
     }
 }
 
-#[derive(Event, Clone, Reflect, Debug)]
+#[derive(AbilityEvent, Event, Clone, Reflect, Debug)]
 pub(crate) struct OnTrigger {
+    #[ability_event(caster)]
     pub(crate) caster: Entity,
+
+    #[ability_event(target)]
     pub(crate) target: Target,
+
+    #[ability_event(ability)]
     pub(crate) ability: Entity,
+
     pub(crate) trigger: Entity,
 }
 
 impl fmt::Display for OnTrigger {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "OnTrigger({:?})", self.trigger)
-    }
-}
-
-impl AbilityEventType for OnTrigger {
-    fn ability(&self) -> Entity {
-        self.ability
-    }
-    fn caster(&self) -> Entity {
-        self.caster
-    }
-    fn target(&self) -> Target {
-        self.target
     }
 }
 
@@ -149,7 +134,6 @@ impl<T: AbilityEventType> Actions<T> {
     }
 }
 
-// TODO: impl & use AbilityActionBundle so only Actions(T) can be added
 #[derive(Clone)]
 pub(crate) struct ActionBuilder<T: AbilityEventType, B: Bundle> {
     actions: B,
@@ -245,15 +229,6 @@ pub(crate) trait CreateActionBuilder: Sized {
     type Event: AbilityEventType;
 
     fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B>;
-}
-
-// TODO: Might want to remove this in favor of Actions<T> impl.
-impl<T: AbilityEventType> CreateActionBuilder for T {
-    type Event = T;
-
-    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B> {
-        ActionBuilder::run(actions)
-    }
 }
 
 impl<T: AbilityEventType> CreateActionBuilder for Actions<T> {

@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{prelude::*, stats::pool};
 
-pub(crate) fn plugin<S: Stat>(app: &mut App)
+pub(crate) fn configure_stat<S: Stat>(app: &mut App)
 where
     S: Component + GetTypeRegistration,
 {

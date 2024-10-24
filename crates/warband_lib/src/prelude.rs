@@ -29,7 +29,6 @@ pub(crate) use crate::{
     cleanup::*,
     core::*,
     despawn::*,
-    for_in_match,
     name::*,
     previous::*,
     required_component::*,

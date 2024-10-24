@@ -1,9 +1,19 @@
 use darling::FromDeriveInput;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_crate::{crate_name, FoundCrate};
-use quote::quote;
-use syn::{Data, DeriveInput, Ident, PathArguments, Type};
+use quote::{quote, ToTokens};
+use syn::{
+    parse::{Parse, ParseStream},
+    Attribute,
+    Data,
+    DeriveInput,
+    Fields,
+    Ident,
+    Path,
+    PathArguments,
+    Result,
+    Type,
+};
 
 use super::CRATE_IDENT;
 
@@ -12,15 +22,7 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
     const ACTION_PROP_TYPE_IDENT: &str = "Prop";
 
     let name = &ast.ident;
-    let crate_ident = match crate_name(CRATE_IDENT)
-        .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
-    {
-        FoundCrate::Itself => quote!(crate::ability::action),
-        FoundCrate::Name(name) => {
-            let ident = Ident::new(&name, Span::call_site());
-            quote!( #ident::ability::action )
-        },
-    };
+    let crate_ident = crate::util::crate_ident(CRATE_IDENT, "::ability::action");
 
     let generics = &ast.generics;
     let vis = &ast.vis;
@@ -165,6 +167,13 @@ pub(super) fn impl_ability_action_derive(ast: &DeriveInput) -> TokenStream {
 
             input
         }
+
+        #[automatically_derived]
+        impl #impl_generics Configure for #name #ty_generics #where_clause {
+            fn configure(app: &mut App) {
+                #crate_ident::configure_action::<#name #ty_generics>(app);
+            }
+        }
     };
 
     TokenStream::from(expanded)
@@ -180,16 +189,7 @@ struct AbilityOpts {
 pub(super) fn impl_ability_derive(ast: &DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let opts = AbilityOpts::from_derive_input(ast).expect("invalid options");
-
-    let crate_ident = match crate_name(CRATE_IDENT)
-        .unwrap_or_else(|_| panic!("expected {CRATE_IDENT:?} is present in `Cargo.toml`"))
-    {
-        FoundCrate::Itself => quote!(crate::ability),
-        FoundCrate::Name(name) => {
-            let ident = Ident::new(&name, Span::call_site());
-            quote!( #ident::ability )
-        },
-    };
+    let crate_ident = crate::util::crate_ident(CRATE_IDENT, "::ability");
 
     let ability_id = opts.id;
     let ability_bundle = opts.bundle;
@@ -198,13 +198,118 @@ pub(super) fn impl_ability_derive(ast: &DeriveInput) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics #crate_ident::AbilityData for #name #ty_generics #where_clause {
-            const ID: AbilityId = AbilityId::new(#ability_id);
+            const ID: #crate_ident::AbilityId = #crate_ident::AbilityId::new(#ability_id);
 
-            fn bundle() -> impl AbilityBundle {
+            fn bundle() -> impl #crate_ident::AbilityBundle {
                 #ability_bundle()
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics Configure for #name #ty_generics #where_clause {
+            fn configure(app: &mut App) {
+                #crate_ident::configure_ability::<#name #ty_generics>(app);
             }
         }
     };
 
     TokenStream::from(expanded)
+}
+
+struct AbilityEventField {
+    target: Path,
+}
+
+impl Parse for AbilityEventField {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let target: Path = input.parse()?;
+        Ok(AbilityEventField { target })
+    }
+}
+
+pub(super) fn impl_ability_event_derive(ast: &DeriveInput) -> TokenStream {
+    let name = &ast.ident;
+    let crate_ident = crate::util::crate_ident(CRATE_IDENT, "::ability::event");
+    let generics = &ast.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let fields = match ast.data {
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => &fields.named,
+            _ => panic!("AbilityEvent can only be derived for structs with named fields"),
+        },
+        _ => panic!("AbilityEvent can only be derived for structs"),
+    };
+
+    let ability_field = fields
+        .iter()
+        .find(|field| {
+            field
+                .attrs
+                .iter()
+                .any(|attr: &syn::Attribute| has_ability_event_attr(attr, "ability"))
+        })
+        .expect("AbilityEvent struct must have a field with the ability_event(ability) attribute");
+
+    let caster_field = fields
+        .iter()
+        .find(|field| {
+            field
+                .attrs
+                .iter()
+                .any(|attr: &syn::Attribute| has_ability_event_attr(attr, "caster"))
+        })
+        .expect("AbilityEvent struct must have a field with the ability_event(caster) attribute");
+
+    let target_field = fields
+        .iter()
+        .find(|field| {
+            field
+                .attrs
+                .iter()
+                .any(|attr: &syn::Attribute| has_ability_event_attr(attr, "target"))
+        })
+        .expect("AbilityEvent struct must have a field with the ability_event(target) attribute");
+
+    let ability_ident = &ability_field.ident.as_ref().unwrap();
+    let caster_ident = &caster_field.ident.as_ref().unwrap();
+    let target_ident = &target_field.ident.as_ref().unwrap();
+
+    let expanded = quote! {
+        #[automatically_derived]
+        impl #impl_generics #crate_ident::AbilityEventType for #name #ty_generics #where_clause {
+            fn ability(&self) -> Entity {
+                self.#ability_ident
+            }
+            fn caster(&self) -> Entity {
+                self.#caster_ident
+            }
+            fn target(&self) -> Target {
+                self.#target_ident
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics Configure for #name #ty_generics #where_clause {
+            fn configure(app: &mut App) {
+                #crate_ident::configure_ability_event::<#name #ty_generics>(app);
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+fn has_ability_event_attr(attr: &Attribute, name: &str) -> bool {
+    let field = match attr.parse_args::<AbilityEventField>() {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            return false;
+        },
+    };
+
+    let field = &field.target;
+    let token_stream = field.to_token_stream();
+    let path_str = token_stream.to_string();
+    path_str == name
 }

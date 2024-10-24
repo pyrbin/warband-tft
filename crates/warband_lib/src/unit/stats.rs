@@ -1,8 +1,7 @@
-use crate::{prelude::*, stats::stat};
+use crate::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins(stat::plugin::<Health>);
-    app.add_plugins(stat::plugin::<Movement>);
+    app.configure::<(Health, Movement, Range)>();
 }
 
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]

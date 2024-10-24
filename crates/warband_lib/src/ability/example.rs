@@ -4,8 +4,6 @@ use super::{
     event::{AbilityEventType, Actions, CreateActionBuilder, OnCast, OnTrigger},
     projectile::ProjectileType,
     AbilityBundle,
-    AbilityExt,
-    AbilityId,
     AbilityType,
     Element,
     Radius,
@@ -19,9 +17,7 @@ use crate::{
 };
 
 pub(super) fn plugin(app: &mut App) {
-    app.register_ability::<Fireball>();
-    app.register_ability_action::<Damage<Health>>();
-    app.register_ability_action::<Log>();
+    app.configure::<(Fireball, Damage<Health>, Log)>();
 }
 
 #[derive(Ability, Component, Clone, Default, Reflect)]
@@ -63,7 +59,7 @@ pub(crate) struct Damage<T: Stat + Component + GetTypeRegistration> {
     pub(crate) can_crit: bool,
 }
 
-pub(crate) fn damage<T: Stat + Component + GetTypeRegistration>(
+fn damage<T: Stat + Component + GetTypeRegistration>(
     input: In<ActionInput<Damage<T>>>,
     mut damage_event: EventWriter<crate::unit::combat::DamageEvent>,
 ) {
@@ -80,6 +76,6 @@ pub(crate) fn damage<T: Stat + Component + GetTypeRegistration>(
 #[ability_action(log)]
 pub(crate) struct Log;
 
-pub(crate) fn log(In(event): In<ActionInput<Log>>) {
+fn log(In(event): In<ActionInput<Log>>) {
     info!("{event}");
 }

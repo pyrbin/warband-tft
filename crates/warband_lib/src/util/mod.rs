@@ -31,16 +31,3 @@ macro_rules! single_mut {
         }
     };
 }
-
-#[macro_export]
-macro_rules! for_in_match {
-    ($iter:expr, $( $pattern:pat => $block:block ),*) => {
-        for item in $iter {
-            match item {
-                $( $pattern => $block, )*
-                #[allow(unreachable_patterns)]
-                _ => continue,
-            }
-        }
-    };
-}

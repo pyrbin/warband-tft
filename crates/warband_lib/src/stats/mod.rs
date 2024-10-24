@@ -54,14 +54,3 @@ pub(super) fn plugin(app: &mut App) {
         propagate_previous_changed::<Modifies>.in_set(StatSystems::Dirty),
     );
 }
-
-#[macro_export]
-macro_rules! register_stats {
-    ($app:expr, $($stat:ty),*) => {
-        $app.add_plugins((
-            $(
-                stat::plugin::<$stat>,
-            )*
-        ));
-    };
-}
