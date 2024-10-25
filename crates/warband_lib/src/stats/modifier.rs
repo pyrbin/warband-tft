@@ -140,7 +140,7 @@ pub(super) fn modifies_changed<S: Stat>(
 fn changed<M: Modifier<S>, S: Stat>(
     mut commands: Commands,
     mut stats: Query<Entity, NonDirtyStatFilter<S>>,
-    modifiers: Query<(Entity, Option<&Parent>, Option<&Modifies>), Changed<M>>,
+    modifiers: Query<(Entity, Option<&S>, Option<&Parent>, Option<&Modifies>), Changed<M>>,
     modifier_parents: Query<(Entity, &Modifies)>,
 ) where
     M: Component + Modifier<S>,
@@ -154,7 +154,7 @@ fn changed<M: Modifier<S>, S: Stat>(
         }
     };
 
-    for (entity, maybe_parent, maybe_target) in &modifiers {
+    for (entity, maybe_stat, maybe_parent, maybe_target) in &modifiers {
         let modifier_target = maybe_target
             .or(maybe_parent.and_then(|p| modifier_parents.get(p.get()).ok().map(|(_, t)| t)));
 
@@ -166,11 +166,13 @@ fn changed<M: Modifier<S>, S: Stat>(
                 }
             },
             None => {
-                if let Some(parent) = maybe_parent {
-                    add_dirty_stat(parent.get())
+                if maybe_stat.is_none() {
+                    if let Some(parent) = maybe_parent {
+                        add_dirty_stat(parent.get());
+                    }
+                } else {
+                    add_dirty_stat(entity);
                 }
-
-                add_dirty_stat(entity);
             },
         }
     }
@@ -179,7 +181,7 @@ fn changed<M: Modifier<S>, S: Stat>(
 fn removed<M: Modifier<S>, S: Stat>(
     trigger: Trigger<OnRemove, M>,
     non_dirty: Query<Entity, NonDirtyStatFilter<S>>,
-    modifiers: Query<(Entity, Option<&Parent>, Option<&Modifies>), With<M>>,
+    modifiers: Query<(Entity, Option<&S>, Option<&Parent>, Option<&Modifies>), With<M>>,
     modifier_parents: Query<(Entity, &Modifies)>,
     mut commands: Commands,
 ) where
@@ -188,7 +190,7 @@ fn removed<M: Modifier<S>, S: Stat>(
 {
     let entity: Entity = trigger.entity();
 
-    let Ok((entity, maybe_parent, maybe_target)) = modifiers.get(entity) else {
+    let Ok((entity, maybe_stat, maybe_parent, maybe_target)) = modifiers.get(entity) else {
         return;
     };
 
@@ -211,11 +213,13 @@ fn removed<M: Modifier<S>, S: Stat>(
             }
         },
         None => {
-            if let Some(parent) = maybe_parent {
-                add_dirty_stat(&parent.get());
+            if maybe_stat.is_none() {
+                if let Some(parent) = maybe_parent {
+                    add_dirty_stat(&parent.get());
+                }
+            } else {
+                add_dirty_stat(&entity);
             }
-
-            add_dirty_stat(&entity);
         },
     }
 }
@@ -232,13 +236,13 @@ fn add_accumulate<M: Modifier<S>, S: Stat + Component>(
 
 fn accumulate<M: Modifier<S>, S: Stat>(
     mut stats: Query<&mut Accumulated<M, S>, With<Dirty<S>>>,
-    modifiers: Query<(Entity, &M, Option<&Parent>, Option<&Modifies>)>,
+    modifiers: Query<(Entity, &M, Option<&S>, Option<&Parent>, Option<&Modifies>)>,
     modifier_parents: Query<(Entity, &Modifies)>,
 ) where
     M: Component + Modifier<S>,
     S: Component,
 {
-    for (entity, modifier, maybe_parent, maybe_target) in modifiers.iter() {
+    for (entity, modifier, maybe_stat, maybe_parent, maybe_target) in modifiers.iter() {
         let mut apply_modifier = |entity: &Entity| {
             if let Ok(mut accumulated) = stats.get_mut(*entity) {
                 accumulated.add(modifier.value());
@@ -256,11 +260,13 @@ fn accumulate<M: Modifier<S>, S: Stat>(
                 }
             },
             None => {
-                if let Some(parent) = maybe_parent {
-                    apply_modifier(&parent.get());
+                if maybe_stat.is_none() {
+                    if let Some(parent) = maybe_parent {
+                        apply_modifier(&parent.get());
+                    }
+                } else {
+                    apply_modifier(&entity);
                 }
-
-                apply_modifier(&entity);
             },
         }
     }

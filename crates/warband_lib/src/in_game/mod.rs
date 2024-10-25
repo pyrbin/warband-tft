@@ -3,15 +3,19 @@ use bevy_mod_picking::prelude::*;
 use crate::{
     ability::{
         self,
-        cast::{AbilityCaster, AbilitySlots, Mana, TryAbility},
+        cast::{AbilityCaster, TryAbility},
         example::Fireball,
+        slot::AbilitySlots,
         AbilityData,
+        Mana,
+        Radius,
     },
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
     player::camera::MainCamera,
     prelude::*,
+    stats::modifier::Mult,
     unit,
     AppState,
 };
@@ -67,8 +71,11 @@ fn setup(
                 ..default()
             },
             Mana(0.0),
+            Radius(0.0),
+            Mult(Radius(-1.5)),
+            Mult::<Mana>(Mana(0.0)),
             AbilityCaster,
-            AbilitySlots::with(Fireball::ID),
+            AbilitySlots::with(Fireball::ID).with(Fireball::ID),
         ))
         .id();
 

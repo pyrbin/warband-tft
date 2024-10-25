@@ -13,6 +13,12 @@ use enum_dispatch::enum_dispatch;
 use super::Target;
 use crate::prelude::*;
 
+pub(super) fn plugin(app: &mut App) {
+    app_register_types!(OnCast, OnTrigger);
+
+    app.configure::<(OnCast, OnTrigger)>();
+}
+
 #[derive(Event, Clone, Reflect, Debug)]
 #[enum_dispatch(AbilityEventType)]
 pub(crate) enum AbilityEvent {
@@ -53,7 +59,7 @@ pub(crate) fn configure_ability_event<T: AbilityEventType + Into<AbilityEvent>>(
     app.observe(propagate::<T>);
 }
 
-pub(super) fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
+fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
     trigger: Trigger<T>,
     ability: Query<&Actions<T>>,
     mut commands: Commands,
@@ -135,12 +141,12 @@ impl<T: AbilityEventType> Actions<T> {
 }
 
 #[derive(Clone)]
-pub(crate) struct ActionBuilder<T: AbilityEventType, B: Bundle> {
+pub(crate) struct ActionEventBuilder<T: AbilityEventType, B: Bundle> {
     actions: B,
     _marker: std::marker::PhantomData<(T, B)>,
 }
 
-impl<T: AbilityEventType, B: Bundle> ActionBuilder<T, B> {
+impl<T: AbilityEventType, B: Bundle> ActionEventBuilder<T, B> {
     pub(crate) const fn run(actions: B) -> Self {
         Self {
             _marker: std::marker::PhantomData,
@@ -149,7 +155,7 @@ impl<T: AbilityEventType, B: Bundle> ActionBuilder<T, B> {
     }
 }
 
-impl<T: AbilityEventType, B: Bundle> Component for ActionBuilder<T, B> {
+impl<T: AbilityEventType, B: Bundle> Component for ActionEventBuilder<T, B> {
     const STORAGE_TYPE: StorageType = StorageType::SparseSet;
     fn register_component_hooks(hooks: &mut ComponentHooks) {
         hooks.on_add(action_builder_hook::<T, B>);
@@ -161,18 +167,18 @@ fn action_builder_hook<T: AbilityEventType, B: Bundle>(
     entity: Entity,
     _cid: ComponentId,
 ) {
-    world.commands().add(ActionBuilderCommand {
+    world.commands().add(ActionEventBuilderCommand {
         entity,
         _marker: std::marker::PhantomData::<(T, B)>,
     });
 }
 
-struct ActionBuilderCommand<T: AbilityEventType, B: Bundle> {
+struct ActionEventBuilderCommand<T: AbilityEventType, B: Bundle> {
     entity: Entity,
     _marker: std::marker::PhantomData<(T, B)>,
 }
 
-impl<T: AbilityEventType, B: Bundle> Command for ActionBuilderCommand<T, B> {
+impl<T: AbilityEventType, B: Bundle> Command for ActionEventBuilderCommand<T, B> {
     fn apply(self, world: &mut World) {
         let Some(mut entity_mut) = world.get_entity_mut(self.entity) else {
             #[cfg(debug_assertions)]
@@ -182,7 +188,7 @@ impl<T: AbilityEventType, B: Bundle> Command for ActionBuilderCommand<T, B> {
             return;
         };
 
-        let Some(trigger) = entity_mut.take::<ActionBuilder<T, B>>() else {
+        let Some(trigger) = entity_mut.take::<ActionEventBuilder<T, B>>() else {
             #[cfg(debug_assertions)]
             panic!("hook component not found");
 
@@ -225,16 +231,16 @@ impl<T: AbilityEventType, B: Bundle> Command for ActionBuilderCommand<T, B> {
     }
 }
 
-pub(crate) trait CreateActionBuilder: Sized {
+pub(crate) trait CreateActionEventBuilder: Sized {
     type Event: AbilityEventType;
 
-    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B>;
+    fn run<B: Bundle>(actions: B) -> ActionEventBuilder<Self::Event, B>;
 }
 
-impl<T: AbilityEventType> CreateActionBuilder for Actions<T> {
+impl<T: AbilityEventType> CreateActionEventBuilder for Actions<T> {
     type Event = T;
 
-    fn run<B: Bundle>(actions: B) -> ActionBuilder<Self::Event, B> {
-        ActionBuilder::run(actions)
+    fn run<B: Bundle>(actions: B) -> ActionEventBuilder<Self::Event, B> {
+        ActionEventBuilder::run(actions)
     }
 }

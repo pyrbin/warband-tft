@@ -56,13 +56,6 @@ where
     );
 }
 
-pub(crate) fn pool<S: Stat>(stat: S) -> pool::PoolBundle<S>
-where
-    S: Component,
-{
-    pool::PoolBundle::new(stat.value())
-}
-
 pub trait Stat:
     Reflect
     + FromReflect

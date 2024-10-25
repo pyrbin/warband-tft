@@ -2,19 +2,6 @@ use core::panic;
 use std::borrow::Cow;
 
 use bevy::ecs::component::{ComponentHooks, StorageType};
-use cast::{
-    cast_ability,
-    try_ability,
-    AbilitySlot,
-    AbilitySlotEvent,
-    AbilitySlotStatus,
-    AbilitySlots,
-    AbilitySource,
-    CastAbility,
-    EquippedAbility,
-    Mana,
-    TryAbility,
-};
 use enumflags2::BitFlags;
 use event::AbilityEventType;
 use projectile::{ProjectileEvent, ProjectileType, TrackingProjectile};
@@ -27,6 +14,7 @@ pub mod effect;
 pub mod event;
 pub mod example;
 pub mod projectile;
+pub mod slot;
 
 use crate::{prelude::*, unit::Allegiance};
 
@@ -52,47 +40,21 @@ pub(super) fn plugin(app: &mut App) {
         Element,
         TargetTeam,
         FromAbility,
-        Caster,
-        TryAbility,
-        CastAbility,
-        AbilitySlot,
-        AbilitySlots,
-        AbilitySlotEvent,
-        AbilitySource,
-        AbilitySlotStatus,
-        EquippedAbility
+        Caster
     );
 
     app.init_resource::<AbilityRegistry>();
-
-    app.add_event::<TryAbility>();
-    app.add_event::<CastAbility>();
-    app.add_event::<AbilitySlotEvent>();
+    app.configure::<(Interval, Duration, Radius, Speed, Mana)>();
 
     app.add_plugins(example::plugin);
     app.add_plugins(projectile::plugin);
+    app.add_plugins(cast::plugin);
+    app.add_plugins(slot::plugin);
+    app.add_plugins(event::plugin);
 
-    app.configure::<(Interval, Duration, Radius, Speed, Mana)>();
-    app.configure::<(event::OnCast, event::OnTrigger)>();
-    app.configure::<(AbilitySlots, AbilitySlot)>();
-
-    app.add_systems(Update, (try_ability, cast_ability));
     app.add_systems(Update, projectile_events);
 
     app.observe(cast);
-
-    app.add_systems(
-        Update,
-        (
-            (
-                cast::slot_mana,
-                cast::total_slot_mana,
-                cast::slot_mana_modifier,
-            )
-                .chain(),
-            cast::ability_slot_events,
-        ),
-    );
 }
 
 pub(crate) fn configure_ability<T: AbilityData>(app: &mut App) {
@@ -223,6 +185,10 @@ pub(crate) struct Speed(pub(crate) f32);
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]
 #[clamp(min = 0)]
 pub(crate) struct Damage(pub(crate) f32);
+
+#[derive(Stat, Component, Default, Reflect, Copy, Clone)]
+#[clamp(min = 0)]
+pub(crate) struct Mana(pub(crate) f32);
 
 #[derive(Reflect, Component, Clone, Debug, Deref, DerefMut, From)]
 #[reflect(Component, Debug)]

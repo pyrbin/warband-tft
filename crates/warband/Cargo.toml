@@ -9,7 +9,7 @@ build = "build.rs"
 default = ["dev"]
 dev = [
     "warband_lib/dev",
-    "bevy/dynamic_linking",
+    # "bevy/dynamic_linking", // removing for now, causing some issues
 ]
 tracing = ["bevy/trace_chrome"]
 

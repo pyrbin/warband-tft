@@ -158,7 +158,7 @@ fn movement(
     let move_speed = movement.value() * delta_time;
     match trigger.event() {
         MovementAction::Towards(translation) => {
-            const ARRIVE_SPEED_MOD: f32 = 0.75;
+            const ARRIVE_SPEED_MOD: f32 = 0.2;
             let target = move_towards(transform.translation, *translation, move_speed);
             let velocity = (target - transform.translation)
                 .horizontal()
