@@ -13,7 +13,13 @@ pub(super) fn plugin(app: &mut App) {
 #[derive(Component, Reflect)]
 pub(crate) struct AbilityCaster;
 
-// TODO: convert to command
+#[derive(Component, Reflect)]
+pub(crate) enum AbilityCasterStatus {
+    Idle,
+    Casting(Entity),
+}
+
+// TODO: convert to comman
 
 #[derive(Event, Reflect)]
 pub struct TryAbility {

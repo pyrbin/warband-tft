@@ -3,11 +3,12 @@ use bevy::ecs::{
     world::{Command, DeferredWorld},
 };
 
-use super::{cast::AbilityCaster, AbilityId, Mana};
+use super::{cast::AbilityCaster, AbilityId, Mana, TargetTeam};
 use crate::{
     ability::Caster,
     prelude::*,
-    stats::modifier::{Flat, Modifies, Mult},
+    stats::modifier::{Flat, Mult},
+    unit::{stats::Range, Allegiance},
 };
 
 pub(super) fn plugin(app: &mut App) {
@@ -256,33 +257,117 @@ pub(crate) enum AbilitySlotEvent {
         source_slot_index: usize,
         target_slot_index: usize,
     },
+    TryCastAbility {
+        caster: Entity,
+        ability_slot: Entity,
+        target: Target,
+    },
 }
 
 pub(super) fn ability_slot_events(
     mut events: EventReader<AbilitySlotEvent>,
     mut commands: Commands,
-    ability_slots: Query<&AbilitySlots>,
+    casters: Query<(&AbilitySlots, &Mana), With<AbilityCaster>>,
+    ability_slots: Query<
+        (
+            Option<&EquippedAbility>,
+            &Caster,
+            Pool<Mana>,
+            &AbilitySlotStatus,
+            Option<&Range>,
+        ),
+        With<AbilitySlot>,
+    >,
+    units: Query<(&Allegiance, &GlobalTransform)>,
+    abilities: Query<(&TargetTeam), With<AbilityId>>,
 ) {
     for event in events.read() {
-        if let AbilitySlotEvent::PushAbility { caster, ability } = event {
-            let ability = match ability.clone() {
-                AbilitySource::Entity(entity) => entity,
-                AbilitySource::AbilityId(id) => {
-                    commands.spawn_empty().insert(super::Ability(id)).id()
-                },
-            };
+        match event {
+            AbilitySlotEvent::PushAbility { caster, ability } => {
+                let ability = match ability.clone() {
+                    AbilitySource::Entity(entity) => entity,
+                    AbilitySource::AbilityId(id) => {
+                        commands.spawn_empty().insert(super::Ability(id)).id()
+                    },
+                };
 
-            let ability_slots = or_return!(ability_slots.get(*caster));
-            let ability_slot = commands
-                .spawn_empty()
-                .insert((AbilitySlot, Caster(*caster), EquippedAbility(ability)))
-                .add_child(ability)
-                .id();
+                let ability_slot = commands
+                    .spawn_empty()
+                    .insert((AbilitySlot, Caster(*caster), EquippedAbility(ability)))
+                    .add_child(ability)
+                    .id();
 
-            commands.entity(**ability_slots).add_child(ability_slot);
-            commands
-                .entity(ability)
-                .insert((Slot(ability_slot), Caster(*caster)));
+                let (ability_slots, _) = or_continue!(casters.get(*caster));
+                commands.entity(**ability_slots).add_child(ability_slot);
+
+                commands
+                    .entity(ability)
+                    .insert((Slot(ability_slot), Caster(*caster)));
+            },
+            AbilitySlotEvent::TryCastAbility {
+                caster,
+                ability_slot,
+                target,
+            } => {
+                let (_, _) = or_continue!(casters.get(*caster));
+                let (equipped_ability, slot_caster, mana, status, range) =
+                    or_continue!(ability_slots.get(*ability_slot));
+
+                if *caster != **slot_caster {
+                    info!("caster doesn't have that slot");
+                    continue;
+                }
+
+                let Some(equipped_ability) = equipped_ability else {
+                    info!("slot is empty");
+                    continue;
+                };
+
+                let (target_team) = or_continue!(abilities.get(equipped_ability.0));
+
+                if mana.progress01() < 1.0 {
+                    info!("not enough mana");
+                    continue;
+                }
+
+                let (caster_allegiance, caster_transform) = or_continue!(units.get(*caster));
+
+                match target {
+                    Target::Point(point) => {
+                        let distance = caster_transform.translation().xz().distance(point.xz());
+                        if let Some(range) = range
+                            && distance > range.value()
+                        {
+                            info!("target is too far");
+                            continue;
+                        }
+                    },
+                    Target::Entity(target) => {
+                        let (target_allegiance, target_transform) =
+                            or_continue!(units.get(*target));
+
+                        let distance = caster_transform
+                            .translation()
+                            .xz()
+                            .distance(target_transform.translation().xz());
+
+                        if let Some(range) = range
+                            && distance > range.value()
+                        {
+                            info!("target is too far");
+                            continue;
+                        }
+
+                        if !target_team.can_target(*caster_allegiance, *target_allegiance) {
+                            info!("ability cannot target that");
+                            continue;
+                        }
+                    },
+                }
+
+                // TODO: check and commit casting
+            },
+            _ => {},
         }
     }
 }

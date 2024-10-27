@@ -82,10 +82,8 @@ fn propagate<T: AbilityEventType + Into<AbilityEvent>>(
 pub(crate) struct OnCast {
     #[ability_event(caster)]
     pub(crate) caster: Entity,
-
     #[ability_event(target)]
     pub(crate) target: Target,
-
     #[ability_event(ability)]
     pub(crate) ability: Entity,
 }
@@ -100,13 +98,10 @@ impl fmt::Display for OnCast {
 pub(crate) struct OnTrigger {
     #[ability_event(caster)]
     pub(crate) caster: Entity,
-
     #[ability_event(target)]
     pub(crate) target: Target,
-
     #[ability_event(ability)]
     pub(crate) ability: Entity,
-
     pub(crate) trigger: Entity,
 }
 

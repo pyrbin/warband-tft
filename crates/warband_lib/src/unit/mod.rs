@@ -3,7 +3,7 @@ use bevy_spatial::{kdtree::KDTree3, AutomaticUpdate, TransformMode};
 use bevy_vector_shapes::prelude::*;
 use stats::Health;
 
-use crate::{player::camera::MainCamera, prelude::*};
+use crate::{ability::TargetTeam, player::camera::MainCamera, prelude::*};
 
 pub mod ai;
 pub mod combat;
@@ -43,6 +43,14 @@ bitflags::bitflags! {
 }
 
 impl Allegiance {
+    pub const fn enemy(&self) -> Allegiance {
+        self.complement()
+    }
+
+    pub const fn ally(&self) -> Allegiance {
+        *self
+    }
+
     pub const fn is_enemy(&self, other: Self) -> bool {
         !self.is_ally(other)
     }

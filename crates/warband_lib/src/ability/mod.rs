@@ -166,6 +166,29 @@ bitflags::bitflags! {
     }
 }
 
+impl TargetTeam {
+    pub const fn targetable(&self, source: Allegiance) -> Allegiance {
+        let mut targetable = Allegiance::NONE;
+        if self.contains(TargetTeam::HOSTILE) {
+            targetable = targetable.union(source.enemy());
+        }
+        if self.contains(TargetTeam::FRIENDLY) {
+            targetable = targetable.union(source.ally());
+        }
+        targetable
+    }
+
+    pub const fn can_target(&self, source: Allegiance, target: Allegiance) -> bool {
+        if self.contains(TargetTeam::HOSTILE) && source.is_enemy(target) {
+            return true;
+        }
+        if self.contains(TargetTeam::FRIENDLY) && source.is_ally(target) {
+            return true;
+        }
+        false
+    }
+}
+
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]
 #[clamp(min = 0)]
 pub(crate) struct Interval(pub(crate) f32);
