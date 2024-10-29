@@ -9,7 +9,7 @@ use spawn::SpawnExtensions;
 
 pub mod action;
 pub mod area;
-pub mod cast;
+pub mod caster;
 pub mod effect;
 pub mod event;
 pub mod example;
@@ -38,7 +38,7 @@ pub(super) fn plugin(app: &mut App) {
         AbilityType,
         Target,
         Element,
-        TargetTeam,
+        CanTarget,
         FromAbility,
         Caster
     );
@@ -48,7 +48,7 @@ pub(super) fn plugin(app: &mut App) {
 
     app.add_plugins(example::plugin);
     app.add_plugins(projectile::plugin);
-    app.add_plugins(cast::plugin);
+    app.add_plugins(caster::plugin);
     app.add_plugins(slot::plugin);
     app.add_plugins(event::plugin);
 
@@ -149,7 +149,7 @@ pub(crate) enum AbilityType {
 bitflags::bitflags! {
     #[derive(Default, Component, Reflect)]
     #[reflect(Component, PartialEq)]
-    pub struct Element: u8 {
+    pub(crate) struct Element: u8 {
         const FIRE = 1 << 0;
         const FROST = 1 << 1;
         const EARTH = 1 << 2;
@@ -160,29 +160,29 @@ bitflags::bitflags! {
 bitflags::bitflags! {
     #[derive(Default, Component, Reflect)]
     #[reflect(Component, PartialEq)]
-    pub struct TargetTeam: u8 {
+    pub(crate) struct CanTarget: u8 {
         const HOSTILE = 1 << 0;
         const FRIENDLY = 1 << 1;
     }
 }
 
-impl TargetTeam {
-    pub const fn targetable(&self, source: Allegiance) -> Allegiance {
+impl CanTarget {
+    pub(crate) const fn targetable(&self, source: Allegiance) -> Allegiance {
         let mut targetable = Allegiance::NONE;
-        if self.contains(TargetTeam::HOSTILE) {
+        if self.contains(CanTarget::HOSTILE) {
             targetable = targetable.union(source.enemy());
         }
-        if self.contains(TargetTeam::FRIENDLY) {
+        if self.contains(CanTarget::FRIENDLY) {
             targetable = targetable.union(source.ally());
         }
         targetable
     }
 
-    pub const fn can_target(&self, source: Allegiance, target: Allegiance) -> bool {
-        if self.contains(TargetTeam::HOSTILE) && source.is_enemy(target) {
+    pub(crate) const fn can_target(&self, source: Allegiance, target: Allegiance) -> bool {
+        if self.contains(CanTarget::HOSTILE) && source.is_enemy(target) {
             return true;
         }
-        if self.contains(TargetTeam::FRIENDLY) && source.is_ally(target) {
+        if self.contains(CanTarget::FRIENDLY) && source.is_ally(target) {
             return true;
         }
         false
@@ -196,6 +196,10 @@ pub(crate) struct Interval(pub(crate) f32);
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]
 #[clamp(min = 0)]
 pub(crate) struct Duration(pub(crate) f32);
+
+#[derive(Stat, Component, Default, Reflect, Copy, Clone)]
+#[clamp(min = 0)]
+pub(crate) struct CastTime(pub(crate) f32);
 
 #[derive(Stat, Component, Default, Reflect, Copy, Clone)]
 #[clamp(min = 0)]

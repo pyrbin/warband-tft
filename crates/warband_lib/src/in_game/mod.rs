@@ -3,19 +3,17 @@ use bevy_mod_picking::prelude::*;
 use crate::{
     ability::{
         self,
-        cast::{AbilityCaster, TryAbility},
+        caster::{AbilityCaster, AbilityCasterEvent},
         example::Fireball,
         slot::AbilitySlots,
         AbilityData,
         Mana,
-        Radius,
     },
     board,
     navigation::{agent, path},
     physics::motor::{self, Movement},
     player::camera::MainCamera,
     prelude::*,
-    stats::modifier::Mult,
     unit,
     AppState,
 };
@@ -63,7 +61,7 @@ fn setup(
         ))
         .id();
 
-    let caster = commands
+    let _ = commands
         .spawn((
             Name::unit("caster"),
             SpatialBundle {
@@ -71,11 +69,13 @@ fn setup(
                 ..default()
             },
             Mana(0.0),
-            Radius(0.0),
-            Mult(Radius(-1.5)),
-            Mult::<Mana>(Mana(0.0)),
-            AbilityCaster,
+            AbilityCaster::default(),
             AbilitySlots::with(Fireball::ID).with(Fireball::ID),
+            (
+                unit::Unit,
+                unit::stats::Health::pool(100.0),
+                unit::Allegiance::TEAM_1,
+            ),
         ))
         .id();
 
@@ -128,6 +128,8 @@ fn setup(
                 path::Destination::None,
             ),
             (
+                unit::Unit,
+                unit::stats::Health::pool(100.0),
                 unit::ai::UNIT_THINKER.clone(),
                 unit::Allegiance::TEAM_1,
                 unit::ai::Target::None,
@@ -135,31 +137,33 @@ fn setup(
             PickableBundle::default(),
             On::<Pointer<Click>>::target_insert(Despawn::Immediate),
             Movement(150.0 + (rand::random::<f32>() * 400.0)),
-            unit::Unit,
-            unit::stats::Health::pool(100.0),
         ));
     }
 }
 
 fn test_cast(
     buttons: Res<ButtonInput<KeyCode>>,
-    query: Query<(Entity, &mut ability::Caster, &ability::AbilityId)>,
-    mut events: EventWriter<TryAbility>,
+    mut caster: Query<(Entity, &mut Transform), With<AbilityCaster>>,
+    mut events: EventWriter<AbilityCasterEvent>,
     target: Query<Entity, With<MoveTo>>,
-    mut caster: Query<&mut Transform>,
 ) {
     if buttons.just_pressed(KeyCode::Space) {
-        let ability = single!(query);
         let target = single!(target);
-        let mut transform = or_return!(caster.get_mut(**ability.1));
-        // random Vec3 with y being between 2 and 10.
+        let (caster, mut transform) = single_mut!(caster);
+
         let position = Vec3::ZERO + Vec3::Y * (rand::random::<f32>() * 10.0);
         transform.translation = position;
-        events.send(TryAbility {
-            caster: **ability.1,
-            ability: ability.0,
+
+        events.send(AbilityCasterEvent::Cast {
+            caster,
+            ability: ability::caster::CastFrom::FirstReady,
             target: Target::Entity(target),
         });
+    }
+
+    if buttons.just_pressed(KeyCode::KeyT) {
+        let (caster, _) = single!(caster);
+        events.send(AbilityCasterEvent::Mana { caster, delta: 5.0 });
     }
 }
 

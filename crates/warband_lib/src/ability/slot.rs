@@ -3,98 +3,46 @@ use bevy::ecs::{
     world::{Command, DeferredWorld},
 };
 
-use super::{cast::AbilityCaster, AbilityId, Mana, TargetTeam};
-use crate::{
-    ability::Caster,
-    prelude::*,
-    stats::modifier::{Flat, Mult},
-    unit::{stats::Range, Allegiance},
-};
+use super::{caster::AbilityCaster, AbilityId, Mana};
+use crate::{ability::Caster, prelude::*, stats::modifier::Flat};
 
 pub(super) fn plugin(app: &mut App) {
     app_register_types!(
         AbilitySlot,
         AbilitySlots,
         AbilitySlotEvent,
-        AbilitySource,
-        AbilitySlotStatus,
+        AbilityFrom,
         EquippedAbility
     );
 
-    app.configure::<(AbilitySlots, AbilitySlot)>();
+    app.configure::<AbilitySlot>();
     app.add_event::<AbilitySlotEvent>();
 
-    app.add_systems(Update, ((mana, per_slot_mana).chain(), ability_slot_events));
+    app.add_systems(Update, ((mana, per_slot_mana).chain(), events));
 }
 
-#[derive(Component, Reflect, Deref, Clone, From)]
-pub(crate) struct Slot(pub Entity);
-
-#[derive(Component, Reflect, Deref, Clone, From)]
-pub(crate) struct AbilitySlots(Entity);
+#[derive(Component, Reflect, Deref, DerefMut, Clone, From)]
+pub(crate) struct AbilitySlots(pub(crate) SmallVec<[Entity; 4]>);
 
 impl AbilitySlots {
     pub(crate) fn empty() -> Self {
-        Self(Entity::PLACEHOLDER)
+        Self(SmallVec::new())
     }
 
     pub(crate) fn with(ability: impl Into<AbilityId>) -> AbilitySlotsBuilder {
         AbilitySlotsBuilder::new().with(ability)
     }
-
-    pub(crate) fn get(&self) -> Entity {
-        self.0
-    }
-}
-
-impl Configure for AbilitySlots {
-    fn configure(app: &mut App) {
-        app.observe(
-            |trigger: Trigger<OnAdd, AbilitySlots>,
-             mut commands: Commands,
-             mut slots: Query<&mut AbilitySlots>| {
-                const NAME: &str = "ability slots";
-                let entity = trigger.entity();
-                let container = commands
-                    .spawn_empty()
-                    .insert(Name::new(NAME))
-                    .insert(Flat::<Mana>::default())
-                    .id();
-
-                let mut slots = or_return!(slots.get_mut(entity));
-                slots.0 = container;
-
-                commands.entity(entity).add_child(container);
-            },
-        );
-
-        app.observe(
-            |trigger: Trigger<OnRemove, AbilitySlots>,
-             mut commands: Commands,
-             slots: Query<&AbilitySlots>| {
-                let entity = trigger.entity();
-                let slots = or_return!(slots.get(entity));
-                commands.entity(slots.0).despawn_recursive();
-            },
-        );
-    }
 }
 
 #[derive(Component, Reflect)]
-pub(crate) struct AbilitySlot;
+pub(crate) struct AbilitySlot; // (pub(crate) usize Index)
 
 impl Configure for AbilitySlot {
     fn configure(app: &mut App) {
         app.observe(
             |trigger: Trigger<OnAdd, AbilitySlot>, mut commands: Commands| {
                 let entity = trigger.entity();
-                commands.entity(entity).insert((
-                    Name::new("ability slot"),
-                    Mana::pool(0.0),
-                    Mult::<Mana>::default(),
-                    Flat::<Mana>::default(),
-                    AbilitySlotStatus::UnsufficientMana,
-                ));
+                commands.entity(entity).insert(Mana::pool(0.0));
             },
         );
     }
@@ -158,32 +106,23 @@ impl Command for AbilitySlotsBuilderCommand {
             .unwrap();
 
         for ability in self.abilities {
-            event_writer.send(AbilitySlotEvent::PushAbility {
+            event_writer.send(AbilitySlotEvent::Push {
                 caster: self.entity,
-                ability: AbilitySource::AbilityId(ability),
+                ability: AbilityFrom::AbilityId(ability),
             });
         }
     }
 }
 
-#[derive(Component, Reflect)]
+#[derive(Component, Deref, DerefMut, Reflect)]
 pub(crate) struct EquippedAbility(pub Entity);
 
-#[derive(Component, Reflect)]
-pub(crate) enum AbilitySlotStatus {
-    Ready,
-    UnsufficientMana,
-}
-
 fn mana(
-    mut ability_slots: Query<&AbilitySlots>,
-    mut ability_slots_entity: Query<(&Children, &mut Flat<Mana>)>,
+    mut ability_slots: Query<(&AbilitySlots, &mut Flat<Mana>)>,
     slot: Query<&EquippedAbility, With<AbilitySlot>>,
     ability: Query<&Mana, With<AbilityId>>,
 ) {
-    for slot_id in &mut ability_slots {
-        let (children, mut flat_mana) = or_continue_quiet!(ability_slots_entity.get_mut(slot_id.0));
-
+    for (children, mut flat_mana) in &mut ability_slots {
         let mut total_mana: f32 = 0.0;
 
         for ability_id in children.iter() {
@@ -199,18 +138,21 @@ fn mana(
 }
 
 fn per_slot_mana(
-    caster: Query<(&AbilitySlots, &Mana), (With<AbilityCaster>, Without<AbilityId>)>,
-    ability_slots: Query<(&Children, &Flat<Mana>), Without<AbilitySlot>>,
+    caster: Query<
+        (&AbilitySlots, &Mana, &Flat<Mana>),
+        (
+            With<AbilityCaster>,
+            (Without<AbilityId>, Without<AbilitySlot>),
+        ),
+    >,
     mut slot: Query<(&mut Flat<Mana>, &EquippedAbility), With<AbilitySlot>>,
     ability: Query<&Mana, With<AbilityId>>,
 ) {
-    for (slots_id, caster_mana) in &caster {
-        let (ability_slots, total_mana) = or_continue_quiet!(ability_slots.get(slots_id.0));
-
+    for (ability_slots, caster_mana, base_mana) in &caster {
         for id in ability_slots.iter() {
             let (mut slot_mana, equipped_ability) = or_continue!(slot.get_mut(*id));
             let mana = or_continue!(ability.get(equipped_ability.0));
-            let part = mana.value() / total_mana.value();
+            let part = mana.value() / base_mana.value();
             let mana_per_slot = part * caster_mana.value();
 
             if !(slot_mana.0.value() - mana_per_slot).abs().is_approx_zero() {
@@ -220,154 +162,60 @@ fn per_slot_mana(
     }
 }
 
-fn ability_slot_mana(
-    ability: Query<(&Slot, &Flat<Mana>), (Changed<Mana>, Changed<Slot>, With<AbilityId>)>,
-    mut slot: Query<
-        &mut Flat<Mana>,
-        (With<EquippedAbility>, Without<AbilityId>, With<AbilitySlot>),
-    >,
-) {
-    for (slot_id, mana) in &ability {
-        let mut slot_mana = or_continue!(slot.get_mut(slot_id.0));
-        if (mana.0.value() - slot_mana.0.value()).is_approx_zero() {
-            continue;
-        }
-        slot_mana.0 = Mana(mana.0.value());
-    }
-}
-
 #[derive(Clone, Reflect)]
-pub(crate) enum AbilitySource {
+pub(crate) enum AbilityFrom {
     Entity(Entity),
     AbilityId(AbilityId),
 }
 
 #[derive(Event, Reflect)]
 pub(crate) enum AbilitySlotEvent {
-    AddAbilityToSlot {
-        caster: Entity,
-        ability_slot: Entity,
-        ability: AbilitySource,
+    AddToSlot {
+        ability_slot: Entity, // TODO: operate on slot_index
+        ability: AbilityFrom,
     },
-    PushAbility {
+    Push {
         caster: Entity,
-        ability: AbilitySource,
+        ability: AbilityFrom,
     },
-    SwapAbilitySlots {
+    SwapSlots {
         source_slot_index: usize,
         target_slot_index: usize,
     },
-    TryCastAbility {
-        caster: Entity,
-        ability_slot: Entity,
-        target: Target,
-    },
 }
 
-pub(super) fn ability_slot_events(
-    mut events: EventReader<AbilitySlotEvent>,
+pub(super) fn events(
+    mut reader: EventReader<AbilitySlotEvent>,
     mut commands: Commands,
-    casters: Query<(&AbilitySlots, &Mana), With<AbilityCaster>>,
-    ability_slots: Query<
-        (
-            Option<&EquippedAbility>,
-            &Caster,
-            Pool<Mana>,
-            &AbilitySlotStatus,
-            Option<&Range>,
-        ),
-        With<AbilitySlot>,
-    >,
-    units: Query<(&Allegiance, &GlobalTransform)>,
-    abilities: Query<(&TargetTeam), With<AbilityId>>,
+    mut casters: Query<&mut AbilitySlots, With<AbilityCaster>>,
 ) {
-    for event in events.read() {
-        match event {
-            AbilitySlotEvent::PushAbility { caster, ability } => {
-                let ability = match ability.clone() {
-                    AbilitySource::Entity(entity) => entity,
-                    AbilitySource::AbilityId(id) => {
-                        commands.spawn_empty().insert(super::Ability(id)).id()
-                    },
-                };
+    for event in reader.read() {
+        if let AbilitySlotEvent::Push { caster, ability } = event {
+            let ability = match ability.clone() {
+                AbilityFrom::Entity(entity) => entity,
+                AbilityFrom::AbilityId(id) => {
+                    commands.spawn_empty().insert(super::Ability(id)).id()
+                },
+            };
 
-                let ability_slot = commands
-                    .spawn_empty()
-                    .insert((AbilitySlot, Caster(*caster), EquippedAbility(ability)))
-                    .add_child(ability)
-                    .id();
+            let mut ability_slots = or_continue!(casters.get_mut(*caster));
+            let ability_slots_len = ability_slots.len();
 
-                let (ability_slots, _) = or_continue!(casters.get(*caster));
-                commands.entity(**ability_slots).add_child(ability_slot);
+            let ability_slot = commands
+                .spawn_empty()
+                .insert((
+                    AbilitySlot,
+                    Caster(*caster),
+                    EquippedAbility(ability),
+                    Name::new(format!("ability slot {ability_slots_len:?}")),
+                ))
+                .add_child(ability)
+                .id();
 
-                commands
-                    .entity(ability)
-                    .insert((Slot(ability_slot), Caster(*caster)));
-            },
-            AbilitySlotEvent::TryCastAbility {
-                caster,
-                ability_slot,
-                target,
-            } => {
-                let (_, _) = or_continue!(casters.get(*caster));
-                let (equipped_ability, slot_caster, mana, status, range) =
-                    or_continue!(ability_slots.get(*ability_slot));
+            ability_slots.push(ability_slot);
 
-                if *caster != **slot_caster {
-                    info!("caster doesn't have that slot");
-                    continue;
-                }
-
-                let Some(equipped_ability) = equipped_ability else {
-                    info!("slot is empty");
-                    continue;
-                };
-
-                let (target_team) = or_continue!(abilities.get(equipped_ability.0));
-
-                if mana.progress01() < 1.0 {
-                    info!("not enough mana");
-                    continue;
-                }
-
-                let (caster_allegiance, caster_transform) = or_continue!(units.get(*caster));
-
-                match target {
-                    Target::Point(point) => {
-                        let distance = caster_transform.translation().xz().distance(point.xz());
-                        if let Some(range) = range
-                            && distance > range.value()
-                        {
-                            info!("target is too far");
-                            continue;
-                        }
-                    },
-                    Target::Entity(target) => {
-                        let (target_allegiance, target_transform) =
-                            or_continue!(units.get(*target));
-
-                        let distance = caster_transform
-                            .translation()
-                            .xz()
-                            .distance(target_transform.translation().xz());
-
-                        if let Some(range) = range
-                            && distance > range.value()
-                        {
-                            info!("target is too far");
-                            continue;
-                        }
-
-                        if !target_team.can_target(*caster_allegiance, *target_allegiance) {
-                            info!("ability cannot target that");
-                            continue;
-                        }
-                    },
-                }
-
-                // TODO: check and commit casting
-            },
-            _ => {},
+            commands.entity(*caster).add_child(ability_slot);
+            commands.entity(ability).insert(Caster(*caster));
         }
     }
 }

@@ -25,7 +25,7 @@ pub(super) fn plugin(app: &mut App) {
             ..default()
         },
         GizmoConfig {
-            enabled: true,
+            enabled: false, // true
             ..default()
         },
     )

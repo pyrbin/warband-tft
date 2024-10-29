@@ -4,12 +4,12 @@ use super::{
     projectile::ProjectileType,
     AbilityBundle,
     AbilityType,
+    CanTarget,
     Element,
     Mana,
     Radius,
     Speed,
     Target,
-    TargetTeam,
 };
 use crate::{
     prelude::*,
@@ -31,7 +31,7 @@ fn fireball() -> impl AbilityBundle {
         AbilityType::Projectile,
         ProjectileType::Tracking,
         Element::FIRE,
-        TargetTeam::HOSTILE,
+        CanTarget::HOSTILE,
         Actions::<OnCast>::run((Action(Targets::ENTITY, Log),)),
         Actions::<OnTrigger>::run((
             Action(

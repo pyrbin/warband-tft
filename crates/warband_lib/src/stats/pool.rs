@@ -45,6 +45,11 @@ impl<S: Stat + Component> PoolReadOnlyItem<'_, S> {
     pub fn progress01(&self) -> f32 {
         pool_01(self.current(), self.total())
     }
+
+    #[inline]
+    pub fn full(&self) -> bool {
+        self.progress01() == 1.0
+    }
 }
 
 #[allow(unused)]
@@ -57,10 +62,14 @@ impl<S: Stat + Component> PoolItem<'_, S> {
         **self.current
     }
 
-    /// [0..1]
     #[inline]
     pub fn progress01(&self) -> f32 {
         pool_01(self.current(), self.total())
+    }
+
+    #[inline]
+    pub fn full(&self) -> bool {
+        self.progress01() == 1.0
     }
 
     #[inline]

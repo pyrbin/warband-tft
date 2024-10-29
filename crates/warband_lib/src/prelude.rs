@@ -34,7 +34,10 @@ pub(crate) use crate::{
     required_component::*,
     single,
     single_mut,
-    stats::{pool::Pool, stat::Stat},
+    stats::{
+        pool::{Current, Pool},
+        stat::Stat,
+    },
     util::{
         bevy_ext::*,
         configure::{AppExtConfigure, Configure},
