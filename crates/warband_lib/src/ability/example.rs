@@ -27,7 +27,7 @@ pub(crate) struct Fireball;
 #[inline]
 fn fireball() -> impl AbilityBundle {
     (
-        Fireball,
+        Fireball, // TODO: this should be implicit.
         AbilityType::Projectile,
         ProjectileType::Tracking,
         Element::FIRE,

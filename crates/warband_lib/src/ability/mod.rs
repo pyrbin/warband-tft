@@ -10,7 +10,7 @@ use spawn::SpawnExtensions;
 pub mod action;
 pub mod area;
 pub mod caster;
-pub mod effect;
+// pub mod effect;
 pub mod event;
 pub mod example;
 pub mod projectile;
@@ -20,11 +20,11 @@ use crate::{prelude::*, unit::Allegiance};
 
 // [ ] Effects
 // [/] Ability Registration
-// [ ] Ability Caster & Ability Slots <--- IN PROGRESS
+// [/] Ability Caster & Ability Slots
 // [ ] Area Delivery Trigger
 // [x] Projectile Delivery Trigger
 // [ ] Instant Delivery Trigger
-// [ ] Action Targeting
+// [ ] Action Targeting, Proc Rate, ActionParams / ActionTarget Builder
 // [ ] Linear Projectile / Tracking Distiction
 // [ ] Fire Sound Action
 // [ ] Particle Action
@@ -151,8 +151,8 @@ bitflags::bitflags! {
     #[reflect(Component, PartialEq)]
     pub(crate) struct Element: u8 {
         const FIRE = 1 << 0;
-        const FROST = 1 << 1;
-        const EARTH = 1 << 2;
+        const COLD = 1 << 1;
+        const NATURE = 1 << 2;
         const STORM = 1 << 3;
     }
 }
